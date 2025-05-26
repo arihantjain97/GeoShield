@@ -5,7 +5,7 @@
 
 export const config = {
   api: {
-    baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL || '',
+    baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api',
     pollingInterval: 30000, // 30 seconds
     endpoints: {
       deviceLocation: '/device-location/v1/retrieve',
@@ -16,7 +16,7 @@ export const config = {
     },
   },
   mapbox: {
-    token: process.env.NEXT_PUBLIC_MAPBOX_TOKEN || 'pk.eyJ1Ijoic3VoYWlsYXJpaGFudCIsImEiOiJjbWIwZ2U3Y3UwY29vMmlzMXoxdXR0cHhkIn0.0GF1WXsRKXlqDzyCw3239g',
+    token: process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '',
     defaultCenter: [103.8198, 1.3521], // Singapore
     defaultZoom: 12,
   },

@@ -29,6 +29,7 @@ export interface DeviceStatusResponse {
  */
 export async function fetchDeviceStatuses(deviceIds?: string[]): Promise<DeviceStatusResponse> {
   try {
+    // 🔗 External API Call starts
     const response = await apiFetch<DeviceStatusResponse>(
       config.api.endpoints.deviceStatus,
       {
@@ -41,6 +42,7 @@ export async function fetchDeviceStatuses(deviceIds?: string[]): Promise<DeviceS
         }),
       }
     );
+    // 🔚 External API Call ends
     return response;
   } catch (error) {
     console.error('Error fetching device statuses:', error);

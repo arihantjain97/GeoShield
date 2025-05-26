@@ -1,11 +1,76 @@
-'use client';
+import * as React from 'react';
+import { cn } from '@/lib/utils';
 
-import * as CollapsiblePrimitive from '@radix-ui/react-collapsible';
+interface CollapsibleProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  children: React.ReactNode;
+  className?: string;
+}
 
-const Collapsible = CollapsiblePrimitive.Root;
+export function Collapsible({ open, onOpenChange, children, className }: CollapsibleProps) {
+  const [isOpen, setIsOpen] = React.useState(open);
 
-const CollapsibleTrigger = CollapsiblePrimitive.CollapsibleTrigger;
+  React.useEffect(() => {
+    setIsOpen(open);
+  }, [open]);
 
-const CollapsibleContent = CollapsiblePrimitive.CollapsibleContent;
+  const handleToggle = () => {
+    const newState = !isOpen;
+    setIsOpen(newState);
+    onOpenChange?.(newState);
+  };
 
-export { Collapsible, CollapsibleTrigger, CollapsibleContent };
+  return (
+    <div className={cn('relative', className)}>
+      {React.Children.map(children, child => {
+        if (React.isValidElement(child)) {
+          if (child.type === CollapsibleTrigger) {
+            return React.cloneElement(child, { onClick: handleToggle });
+          }
+          if (child.type === CollapsibleContent) {
+            return React.cloneElement(child, { isOpen });
+          }
+        }
+        return child;
+      })}
+    </div>
+  );
+}
+
+interface CollapsibleTriggerProps {
+  children: React.ReactNode;
+  className?: string;
+  onClick?: () => void;
+}
+
+export function CollapsibleTrigger({ children, className, onClick }: CollapsibleTriggerProps) {
+  return (
+    <button 
+      className={cn('flex items-center justify-between w-full', className)}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+}
+
+interface CollapsibleContentProps {
+  children: React.ReactNode;
+  className?: string;
+  isOpen?: boolean;
+}
+
+export function CollapsibleContent({ children, className, isOpen }: CollapsibleContentProps) {
+  return (
+    <div
+      className={cn(
+        'overflow-hidden transition-all',
+        isOpen ? 'max-h-screen' : 'max-h-0',
+        className
+      )}
+    >
+      {children}
+    </div>
+  );
+}

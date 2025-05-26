@@ -1,29 +1,26 @@
-'use client';
+import * as React from "react";
+import { cn } from "@/lib/utils";
 
-import * as React from 'react';
-import * as SwitchPrimitives from '@radix-ui/react-switch';
+interface SwitchProps extends React.InputHTMLAttributes<HTMLInputElement> {}
 
-import { cn } from '@/lib/utils';
+export const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(
+  ({ className, ...props }, ref) => {
+    return (
+      <input
+        ref={ref}
+        type="checkbox"
+        role="switch"
+        className={cn(
+          "peer relative h-5 w-10 cursor-pointer appearance-none rounded-full bg-gray-300",
+          "after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all",
+          "checked:bg-primary checked:after:translate-x-5",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+          className
+        )}
+        {...props}
+      />
+    );
+  }
+);
 
-const Switch = React.forwardRef<
-  React.ElementRef<typeof SwitchPrimitives.Root>,
-  React.ComponentPropsWithoutRef<typeof SwitchPrimitives.Root>
->(({ className, ...props }, ref) => (
-  <SwitchPrimitives.Root
-    className={cn(
-      'peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input',
-      className
-    )}
-    {...props}
-    ref={ref}
-  >
-    <SwitchPrimitives.Thumb
-      className={cn(
-        'pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0'
-      )}
-    />
-  </SwitchPrimitives.Root>
-));
-Switch.displayName = SwitchPrimitives.Root.displayName;
-
-export { Switch };
+Switch.displayName = "Switch";

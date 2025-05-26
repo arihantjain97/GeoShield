@@ -1,58 +1,98 @@
-'use client';
-
 import * as React from 'react';
-import * as AccordionPrimitive from '@radix-ui/react-accordion';
+import { cn } from '@/lib/utils';
 import { ChevronDown } from 'lucide-react';
 
-import { cn } from '@/lib/utils';
+interface AccordionItemProps {
+  value: string;
+  trigger: React.ReactNode;
+  content: React.ReactNode;
+  className?: string;
+}
 
-const Accordion = AccordionPrimitive.Root;
+interface AccordionProps {
+  type?: 'single' | 'multiple';
+  value?: string | string[];
+  onValueChange?: (value: string | string[]) => void;
+  className?: string;
+  children: React.ReactNode;
+}
 
-const AccordionItem = React.forwardRef<
-  React.ElementRef<typeof AccordionPrimitive.Item>,
-  React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Item>
->(({ className, ...props }, ref) => (
-  <AccordionPrimitive.Item
-    ref={ref}
-    className={cn('border-b', className)}
-    {...props}
-  />
-));
-AccordionItem.displayName = 'AccordionItem';
+export function Accordion({ 
+  type = 'single',
+  value,
+  onValueChange,
+  className,
+  children 
+}: AccordionProps) {
+  const [openItems, setOpenItems] = React.useState<string[]>(
+    type === 'single' 
+      ? value ? [value as string] : []
+      : value as string[] || []
+  );
 
-const AccordionTrigger = React.forwardRef<
-  React.ElementRef<typeof AccordionPrimitive.Trigger>,
-  React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Trigger>
->(({ className, children, ...props }, ref) => (
-  <AccordionPrimitive.Header className="flex">
-    <AccordionPrimitive.Trigger
-      ref={ref}
-      className={cn(
-        'flex flex-1 items-center justify-between py-4 font-medium transition-all hover:underline [&[data-state=open]>svg]:rotate-180',
-        className
-      )}
-      {...props}
-    >
-      {children}
-      <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
-    </AccordionPrimitive.Trigger>
-  </AccordionPrimitive.Header>
-));
-AccordionTrigger.displayName = AccordionPrimitive.Trigger.displayName;
+  const handleItemClick = (itemValue: string) => {
+    let newOpenItems: string[];
+    
+    if (type === 'single') {
+      newOpenItems = openItems[0] === itemValue ? [] : [itemValue];
+    } else {
+      newOpenItems = openItems.includes(itemValue)
+        ? openItems.filter(v => v !== itemValue)
+        : [...openItems, itemValue];
+    }
+    
+    setOpenItems(newOpenItems);
+    onValueChange?.(type === 'single' ? newOpenItems[0] : newOpenItems);
+  };
 
-const AccordionContent = React.forwardRef<
-  React.ElementRef<typeof AccordionPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Content>
->(({ className, children, ...props }, ref) => (
-  <AccordionPrimitive.Content
-    ref={ref}
-    className="overflow-hidden text-sm transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down"
-    {...props}
-  >
-    <div className={cn('pb-4 pt-0', className)}>{children}</div>
-  </AccordionPrimitive.Content>
-));
+  return (
+    <div className={cn('space-y-1', className)}>
+      {React.Children.map(children, child => {
+        if (React.isValidElement<AccordionItemProps>(child)) {
+          return React.cloneElement(child, {
+            isOpen: openItems.includes(child.props.value),
+            onToggle: () => handleItemClick(child.props.value),
+          });
+        }
+        return child;
+      })}
+    </div>
+  );
+}
 
-AccordionContent.displayName = AccordionPrimitive.Content.displayName;
-
-export { Accordion, AccordionItem, AccordionTrigger, AccordionContent };
+export function AccordionItem({ 
+  value,
+  trigger,
+  content,
+  className,
+  isOpen,
+  onToggle,
+}: AccordionItemProps & { 
+  isOpen?: boolean;
+  onToggle?: () => void;
+}) {
+  return (
+    <div className={cn('border-b', className)}>
+      <button
+        className="flex w-full items-center justify-between py-4 text-sm font-medium transition-all hover:underline"
+        onClick={onToggle}
+      >
+        {trigger}
+        <ChevronDown
+          className={cn(
+            'h-4 w-4 shrink-0 transition-transform duration-200',
+            isOpen && 'rotate-180'
+          )}
+        />
+      </button>
+      <div
+        className={cn(
+          'overflow-hidden transition-all',
+          isOpen ? 'max-h-96' : 'max-h-0'
+        )}
+      >
+        <div className="pb-4 pt-0">{content}</div>
+      </div>
+    </div>
+  );
+}

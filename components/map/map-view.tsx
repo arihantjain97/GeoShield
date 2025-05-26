@@ -1,12 +1,13 @@
 'use client';
 
-import { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import Map, { Marker, Popup, NavigationControl } from 'react-map-gl';
 import { config } from '@/core/config';
 import { Device } from '@/types/device';
 import { useGeoShieldStore } from '@/lib/store';
 import { MapPin, Truck, User, Package, HardDrive, AlertTriangle } from 'lucide-react';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import mapboxgl from 'mapbox-gl';
 
 interface MapViewProps {
   devices: Device[];
@@ -17,19 +18,33 @@ export function MapView({ devices, onDeviceSelect }: MapViewProps) {
   const mapRef = useRef(null);
   const [popupInfo, setPopupInfo] = useState<Device | null>(null);
   const { geofences } = useGeoShieldStore();
-  
-  // Default to Singapore location if no devices have location
+
+  const mapboxToken = config.mapbox.token;
+  if (!mapboxToken) {
+    console.warn("Mapbox token missing");
+    return (
+      <div className="flex items-center justify-center h-full bg-muted">
+        <p className="text-muted-foreground">Map configuration missing</p>
+      </div>
+    );
+  }
+
+  mapboxgl.accessToken = mapboxToken;
+
   const [viewState, setViewState] = useState({
     latitude: config.mapbox.defaultCenter[1],
     longitude: config.mapbox.defaultCenter[0],
     zoom: config.mapbox.defaultZoom,
   });
-  
-  // Update map center based on devices with location
+
   useEffect(() => {
-    const devicesWithLocation = devices.filter(d => d.lastLocation);
+    const devicesWithLocation = devices.filter(d => 
+      d.lastLocation && 
+      typeof d.lastLocation.latitude === 'number' && 
+      typeof d.lastLocation.longitude === 'number'
+    );
+    
     if (devicesWithLocation.length > 0) {
-      // Center on first device with location
       const device = devicesWithLocation[0];
       setViewState({
         latitude: device.lastLocation!.latitude,
@@ -38,71 +53,50 @@ export function MapView({ devices, onDeviceSelect }: MapViewProps) {
       });
     }
   }, [devices]);
-  
-  // Get device icon based on type
+
   const getDeviceIcon = (device: Device) => {
     const isOffline = !device.networkInfo;
     const iconClass = `p-1 rounded-full ${isOffline ? 'bg-destructive/20' : 'bg-background/90'} shadow-md`;
-    
+
     switch (device.type) {
       case 'VEHICLE':
-        return (
-          <div className={iconClass}>
-            <Truck className={`h-5 w-5 ${isOffline ? 'text-destructive' : 'text-primary'}`} />
-          </div>
-        );
+        return <div className={iconClass}><Truck className={`h-5 w-5 ${isOffline ? 'text-destructive' : 'text-primary'}`} /></div>;
       case 'PERSONNEL':
-        return (
-          <div className={iconClass}>
-            <User className={`h-5 w-5 ${isOffline ? 'text-destructive' : 'text-primary'}`} />
-          </div>
-        );
+        return <div className={iconClass}><User className={`h-5 w-5 ${isOffline ? 'text-destructive' : 'text-primary'}`} /></div>;
       case 'CONTAINER':
-        return (
-          <div className={iconClass}>
-            <Package className={`h-5 w-5 ${isOffline ? 'text-destructive' : 'text-primary'}`} />
-          </div>
-        );
+        return <div className={iconClass}><Package className={`h-5 w-5 ${isOffline ? 'text-destructive' : 'text-primary'}`} /></div>;
       case 'ASSET':
-        return (
-          <div className={iconClass}>
-            <HardDrive className={`h-5 w-5 ${isOffline ? 'text-destructive' : 'text-primary'}`} />
-          </div>
-        );
+        return <div className={iconClass}><HardDrive className={`h-5 w-5 ${isOffline ? 'text-destructive' : 'text-primary'}`} /></div>;
       default:
-        return (
-          <div className={iconClass}>
-            <MapPin className={`h-5 w-5 ${isOffline ? 'text-destructive' : 'text-primary'}`} />
-          </div>
-        );
+        return <div className={iconClass}><MapPin className={`h-5 w-5 ${isOffline ? 'text-destructive' : 'text-primary'}`} /></div>;
     }
   };
-  
-  // Format battery level for display
+
   const formatBatteryLevel = (level: number | undefined) => {
     if (level === undefined) return 'Unknown';
     return `${level}%`;
   };
-  
-  // Check if a device is offline
+
   const isDeviceOffline = (device: Device) => {
     return !device.networkInfo;
   };
-  
+
   return (
     <Map
       ref={mapRef}
-      mapboxAccessToken={config.mapbox.token || 'pk.eyJ1IjoiZ2Vvc2hpZWxkIiwiYSI6ImNsaDVnZ3VqZTAyY3AzZHBsNDh4YXczcGcifQ.WZmfQ6Qh4aGoqGe9LYzlrg'}
+      mapboxAccessToken={mapboxToken}
       mapStyle="mapbox://styles/mapbox/dark-v11"
       {...viewState}
       onMove={evt => setViewState(evt.viewState)}
       style={{ width: '100%', height: '100%' }}
     >
       <NavigationControl position="top-right" />
-      
-      {/* Render device markers */}
       {devices.map(device => {
-        if (!device.lastLocation) return null;
+        if (!device.lastLocation || 
+            typeof device.lastLocation.latitude !== 'number' || 
+            typeof device.lastLocation.longitude !== 'number') {
+          return null;
+        }
         
         return (
           <Marker
@@ -119,9 +113,9 @@ export function MapView({ devices, onDeviceSelect }: MapViewProps) {
           </Marker>
         );
       })}
-      
-      {/* Popup for selected device */}
-      {popupInfo && popupInfo.lastLocation && (
+      {popupInfo && popupInfo.lastLocation && 
+       typeof popupInfo.lastLocation.latitude === 'number' && 
+       typeof popupInfo.lastLocation.longitude === 'number' && (
         <Popup
           anchor="bottom"
           latitude={popupInfo.lastLocation.latitude}
@@ -133,7 +127,6 @@ export function MapView({ devices, onDeviceSelect }: MapViewProps) {
           <div className="p-1">
             <h3 className="font-medium text-sm">{popupInfo.name}</h3>
             <div className="text-xs text-muted-foreground mt-1">{popupInfo.type}</div>
-            
             {isDeviceOffline(popupInfo) ? (
               <div className="flex items-center mt-2 text-xs text-destructive">
                 <AlertTriangle className="h-3 w-3 mr-1" />

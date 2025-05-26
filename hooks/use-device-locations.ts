@@ -29,6 +29,7 @@ export interface DeviceLocationResponse {
  */
 export async function fetchDeviceLocations(deviceIds?: string[]): Promise<DeviceLocationResponse> {
   try {
+    // 🔗 External API Call starts
     const response = await apiFetch<DeviceLocationResponse>(
       config.api.endpoints.deviceLocation,
       {
@@ -41,6 +42,7 @@ export async function fetchDeviceLocations(deviceIds?: string[]): Promise<Device
         }),
       }
     );
+    // 🔚 External API Call ends
     return response;
   } catch (error) {
     console.error('Error fetching device locations:', error);

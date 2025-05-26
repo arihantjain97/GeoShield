@@ -5,7 +5,6 @@ import { Device } from '@/types/device';
 import { SignalHigh, SignalMedium, SignalLow, SignalZero, Battery, Smartphone } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 
 interface DeviceStatusPanelProps {
@@ -137,11 +136,17 @@ export function DeviceStatusPanel({
                       : 'Unknown'}
                   </span>
                 </div>
-                <Progress 
-                  value={selectedDevice.networkInfo?.batteryLevel} 
-                  className="h-2"
-                  indicatorClassName={getBatteryColor(selectedDevice.networkInfo?.batteryLevel)}
-                />
+                <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
+                  <div 
+                    className={cn(
+                      "h-full transition-all duration-300",
+                      getBatteryColor(selectedDevice.networkInfo?.batteryLevel)
+                    )}
+                    style={{ 
+                      width: `${selectedDevice.networkInfo?.batteryLevel ?? 0}%`
+                    }}
+                  />
+                </div>
               </div>
             </div>
             

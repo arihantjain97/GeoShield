@@ -4,13 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { 
-  Shield, 
-  Map, 
-  Smartphone, 
-  MapPin, 
-  Bell 
-} from 'lucide-react';
+import { Shield, Map, Smartphone, MapPin } from 'lucide-react';
 
 export function MainNav() {
   const pathname = usePathname();
@@ -51,16 +45,6 @@ export function MainNav() {
         >
           <MapPin className="w-4 h-4 mr-1" />
           <span>Geofences</span>
-        </Link>
-        <Link
-          href="/alerts"
-          className={cn(
-            "flex items-center transition-colors hover:text-foreground/80",
-            pathname.startsWith("/alerts") ? "text-foreground" : "text-foreground/60"
-          )}
-        >
-          <Bell className="w-4 h-4 mr-1" />
-          <span>Alerts</span>
         </Link>
       </nav>
     </div>

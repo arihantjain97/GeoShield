@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Shield } from 'lucide-react';
+import { buttonVariants } from "@/components/ui/button"; 
 
 export const metadata: Metadata = {
   title: 'GeoShield™ - Enterprise Geofencing & Device Monitoring',
@@ -24,16 +25,13 @@ export default function Home() {
           Real-time, carrier-grade geofencing and device-health monitoring for high-value mobile assets and field workers
         </p>
         
-        <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
-          <Button asChild size="lg" className="text-md px-8">
-            <Link href="/dashboard">
-              Enter Dashboard
-            </Link>
+        <div className="flex justify-center gap-4 mt-8">
+          <Button asChild size="lg" variant="outline" className="text-md px-8">
+            <Link href="/dashboard">Enter Dashboard</Link>
           </Button>
+
           <Button asChild variant="outline" size="lg" className="text-md px-8">
-            <Link href="/devices">
-              Manage Devices
-            </Link>
+            <Link href="/devices">Manage Devices</Link>
           </Button>
         </div>
         

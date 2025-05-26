@@ -1,31 +1,63 @@
-'use client';
-
 import * as React from 'react';
-import * as PopoverPrimitive from '@radix-ui/react-popover';
-
 import { cn } from '@/lib/utils';
 
-const Popover = PopoverPrimitive.Root;
+interface PopoverProps {
+  trigger: React.ReactNode;
+  content: React.ReactNode;
+  align?: 'start' | 'center' | 'end';
+  className?: string;
+}
 
-const PopoverTrigger = PopoverPrimitive.Trigger;
+export function Popover({ trigger, content, align = 'center', className }: PopoverProps) {
+  const [open, setOpen] = React.useState(false);
+  const popoverRef = React.useRef<HTMLDivElement>(null);
 
-const PopoverContent = React.forwardRef<
-  React.ElementRef<typeof PopoverPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content>
->(({ className, align = 'center', sideOffset = 4, ...props }, ref) => (
-  <PopoverPrimitive.Portal>
-    <PopoverPrimitive.Content
-      ref={ref}
-      align={align}
-      sideOffset={sideOffset}
-      className={cn(
-        'z-50 w-72 rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
-        className
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative inline-block" ref={popoverRef}>
+      <div onClick={() => setOpen(!open)}>{trigger}</div>
+      {open && (
+        <div
+          className={cn(
+            'absolute z-50 w-72 rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none',
+            'animate-in fade-in-0 zoom-in-95',
+            {
+              'left-0': align === 'start',
+              'left-1/2 -translate-x-1/2': align === 'center',
+              'right-0': align === 'end',
+            },
+            className
+          )}
+        >
+          {content}
+        </div>
       )}
-      {...props}
-    />
-  </PopoverPrimitive.Portal>
-));
-PopoverContent.displayName = PopoverPrimitive.Content.displayName;
+    </div>
+  );
+}
 
-export { Popover, PopoverTrigger, PopoverContent };
+export const PopoverTrigger = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div ref={ref} className={cn('cursor-pointer', className)} {...props} />
+));
+PopoverTrigger.displayName = 'PopoverTrigger';
+
+export const PopoverContent = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div ref={ref} className={cn('', className)} {...props} />
+));
+PopoverContent.displayName = 'PopoverContent';

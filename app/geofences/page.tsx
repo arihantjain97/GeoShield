@@ -53,10 +53,10 @@ export default function GeofencesPage() {
   };
   
   return (
-    <div className="container py-6">
+    <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Geofences</h1>
+          <h1 className="text-2xl font-bold mb-1">Geofences</h1>
           <p className="text-muted-foreground">
             Create and manage geofenced areas for your devices
           </p>
@@ -67,7 +67,7 @@ export default function GeofencesPage() {
             <Map className="h-4 w-4 mr-2" />
             {showMap ? 'Hide Map' : 'Show Map'}
           </Button>
-          <Button size="sm" onClick={handleAddGeofence}>
+          <Button variant="outline" size="sm" onClick={handleAddGeofence}>
             <Plus className="h-4 w-4 mr-2" />
             Add Geofence
           </Button>
@@ -128,7 +128,7 @@ export default function GeofencesPage() {
                 <p className="text-sm text-muted-foreground mt-1">
                   Get started by adding your first geofence.
                 </p>
-                <Button className="mt-4" onClick={handleAddGeofence}>
+                <Button variant="outline" className="mt-4" onClick={handleAddGeofence}>
                   <Plus className="h-4 w-4 mr-2" />
                   Add Geofence
                 </Button>

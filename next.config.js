@@ -5,6 +5,12 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   images: { unoptimized: true },
+  webpack: (config) => {
+    config.infrastructureLogging = { level: 'warn' };
+    // Disable webpack cache to prevent ENOENT errors
+    config.cache = false;
+    return config;
+  },
 };
 
 module.exports = nextConfig;

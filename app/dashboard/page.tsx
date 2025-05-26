@@ -1,22 +1,20 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from "react";
 import { useGeoShieldStore } from '@/lib/store';
 import { MapView } from '@/components/map/map-view';
 import { DeviceStatusPanel } from '@/components/dashboard/device-status-panel';
 import { DashboardHeader } from '@/components/dashboard/dashboard-header';
-import { useToast } from '@/hooks/use-toast';
 import { AlertType, AlertSeverity } from '@/types/alert';
 import { v4 as uuidv4 } from 'uuid';
-import { fetchDeviceLocations } from '@/hooks/use-device-locations';
-import { fetchDeviceStatuses } from '@/hooks/use-device-statuses';
+import { getDeviceLocations } from '@/core/api';
+import { getDeviceStatuses } from '@/core/api';
 import { config } from '@/core/config';
 import { Device } from '@/types/device';
 
 export default function DashboardPage() {
   const { devices, setDevices, selectedDeviceId, setSelectedDeviceId, addAlert } = useGeoShieldStore();
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
 
   // Function to update device data
   const updateDeviceData = async () => {
@@ -84,9 +82,9 @@ export default function DashboardPage() {
       }
 
       // Fetch device locations
-      const locations = await fetchDeviceLocations();
+      const locations = await getDeviceLocations();
       // Fetch device statuses
-      const statuses = await fetchDeviceStatuses();
+      const statuses = await getDeviceStatuses();
 
       // Update devices with location and status information
       const updatedDevices = devices.map(device => {
@@ -134,13 +132,6 @@ export default function DashboardPage() {
               message: `Device ${device.name} is unreachable: ${status.error?.message || 'Unknown error'}`,
               acknowledged: false,
             });
-            
-            // Show toast notification
-            toast({
-              title: 'Device Offline',
-              description: `${device.name} is unreachable`,
-              variant: 'destructive',
-            });
           }
         } else if (status.networkInfo?.batteryLevel < 25) {
           // Low battery - create alert
@@ -155,13 +146,6 @@ export default function DashboardPage() {
               message: `Low battery (${status.networkInfo.batteryLevel}%) on device ${device.name}`,
               acknowledged: false,
             });
-            
-            // Show toast notification
-            toast({
-              title: 'Low Battery',
-              description: `${device.name} battery at ${status.networkInfo.batteryLevel}%`,
-              variant: 'warning',
-            });
           }
         }
       });
@@ -169,11 +153,6 @@ export default function DashboardPage() {
       setLoading(false);
     } catch (error) {
       console.error('Error updating device data:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to update device data',
-        variant: 'destructive',
-      });
       setLoading(false);
     }
   };

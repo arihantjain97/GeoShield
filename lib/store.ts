@@ -4,7 +4,6 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Device } from '@/types/device';
 import { Geofence } from '@/types/geofence';
-import { Alert } from '@/types/alert';
 
 interface GeoShieldState {
   // Devices
@@ -23,11 +22,6 @@ interface GeoShieldState {
   updateGeofence: (id: string, data: Partial<Geofence>) => void;
   removeGeofence: (id: string) => void;
   setSelectedGeofenceId: (id: string | null) => void;
-  
-  // Alerts
-  alerts: Alert[];
-  addAlert: (alert: Alert) => void;
-  clearAlerts: () => void;
 }
 
 export const useGeoShieldStore = create<GeoShieldState>()(
@@ -67,20 +61,12 @@ export const useGeoShieldStore = create<GeoShieldState>()(
         selectedGeofenceId: state.selectedGeofenceId === id ? null : state.selectedGeofenceId,
       })),
       setSelectedGeofenceId: (id) => set({ selectedGeofenceId: id }),
-      
-      // Alerts
-      alerts: [],
-      addAlert: (alert) => set((state) => ({ 
-        alerts: [alert, ...state.alerts].slice(0, 100) // Keep only the most recent 100 alerts
-      })),
-      clearAlerts: () => set({ alerts: [] }),
     }),
     {
       name: 'geoshield-storage',
       partialize: (state) => ({
         devices: state.devices,
         geofences: state.geofences,
-        // Don't persist alerts or selection state
       }),
     }
   )

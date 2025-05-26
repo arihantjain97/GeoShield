@@ -1,30 +1,43 @@
-'use client';
+import * as React from "react";
+import { cn } from "@/lib/utils";
 
-import * as React from 'react';
-import * as TooltipPrimitive from '@radix-ui/react-tooltip';
+interface TooltipProps {
+  children: React.ReactNode;
+  title: string;
+  className?: string;
+  side?: "top" | "right" | "bottom" | "left";
+}
 
-import { cn } from '@/lib/utils';
+export function Tooltip({ children, title, className, side = "top" }: TooltipProps) {
+  const [show, setShow] = React.useState(false);
 
-const TooltipProvider = TooltipPrimitive.Provider;
+  const positions = {
+    top: "-translate-y-full -mt-2",
+    right: "translate-x-2 ml-2 top-0",
+    bottom: "translate-y-2 mt-2",
+    left: "-translate-x-full -ml-2 top-0",
+  };
 
-const Tooltip = TooltipPrimitive.Root;
-
-const TooltipTrigger = TooltipPrimitive.Trigger;
-
-const TooltipContent = React.forwardRef<
-  React.ElementRef<typeof TooltipPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>
->(({ className, sideOffset = 4, ...props }, ref) => (
-  <TooltipPrimitive.Content
-    ref={ref}
-    sideOffset={sideOffset}
-    className={cn(
-      'z-50 overflow-hidden rounded-md border bg-popover px-3 py-1.5 text-sm text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
-      className
-    )}
-    {...props}
-  />
-));
-TooltipContent.displayName = TooltipPrimitive.Content.displayName;
-
-export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider };
+  return (
+    <div 
+      className="relative inline-block"
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+    >
+      {children}
+      {show && (
+        <div
+          role="tooltip"
+          className={cn(
+            "absolute z-50 px-2 py-1 text-xs rounded bg-black text-white",
+            "animate-in fade-in-0 zoom-in-95",
+            positions[side],
+            className
+          )}
+        >
+          {title}
+        </div>
+      )}
+    </div>
+  );
+}
