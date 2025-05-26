@@ -14,12 +14,10 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
   }
 
   try {
-    // 🔗 External API Call starts
     const response = await fetch(url, {
       ...options,
       headers,
     });
-    // 🔚 External API Call ends
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -34,21 +32,35 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
 }
 
 /**
- * Device Location API
+ * Device Location API - Single device request
  */
-export async function getDeviceLocations(deviceIds?: string[]): Promise<DeviceLocationResponse> {
-  return apiRequest(config.api.endpoints.deviceLocation, {
-    method: 'POST',
-    body: JSON.stringify({ deviceIds: deviceIds || [] }),
+export async function getDeviceLocation(deviceId: string): Promise<DeviceLocationResponse> {
+  return apiRequest(config.api.endpoints.deviceLocation + `/${deviceId}`, {
+    method: 'GET'
   });
 }
 
 /**
- * Device Status API
+ * Device Status API - Single device request
  */
-export async function getDeviceStatuses(deviceIds?: string[]): Promise<DeviceStatusResponse> {
-  return apiRequest(config.api.endpoints.deviceStatus, {
-    method: 'POST',
-    body: JSON.stringify({ deviceIds: deviceIds || [] }),
+export async function getDeviceStatus(deviceId: string): Promise<DeviceStatusResponse> {
+  return apiRequest(config.api.endpoints.deviceStatus + `/${deviceId}`, {
+    method: 'GET'
   });
+}
+
+/**
+ * Batch process device locations
+ */
+export async function getAllDeviceLocations(deviceIds: string[]): Promise<DeviceLocationResponse[]> {
+  const promises = deviceIds.map(id => getDeviceLocation(id));
+  return Promise.all(promises);
+}
+
+/**
+ * Batch process device statuses
+ */
+export async function getAllDeviceStatuses(deviceIds: string[]): Promise<DeviceStatusResponse[]> {
+  const promises = deviceIds.map(id => getDeviceStatus(id));
+  return Promise.all(promises);
 }

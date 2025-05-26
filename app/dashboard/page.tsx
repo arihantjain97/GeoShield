@@ -5,22 +5,20 @@ import { useGeoShieldStore } from '@/lib/store';
 import { MapView } from '@/components/map/map-view';
 import { DeviceStatusPanel } from '@/components/dashboard/device-status-panel';
 import { DashboardHeader } from '@/components/dashboard/dashboard-header';
-import { AlertType, AlertSeverity } from '@/types/alert';
 import { v4 as uuidv4 } from 'uuid';
-import { getDeviceLocations } from '@/core/api';
-import { getDeviceStatuses } from '@/core/api';
+import { getAllDeviceLocations, getAllDeviceStatuses } from '@/core/api';
 import { config } from '@/core/config';
 import { Device } from '@/types/device';
 
 export default function DashboardPage() {
-  const { devices, setDevices, selectedDeviceId, setSelectedDeviceId, addAlert } = useGeoShieldStore();
+  const { devices, setDevices, selectedDeviceId, setSelectedDeviceId } = useGeoShieldStore();
   const [loading, setLoading] = useState(true);
 
   // Function to update device data
   const updateDeviceData = async () => {
     try {
       // If no devices in store, add mock data
-      if (devices.length === 0) {
+      if (devices.length === 0) {å
         const mockDevices: Device[] = [
           {
             id: 'device-001',
@@ -81,15 +79,18 @@ export default function DashboardPage() {
         setDevices(mockDevices);
       }
 
-      // Fetch device locations
-      const locations = await getDeviceLocations();
-      // Fetch device statuses
-      const statuses = await getDeviceStatuses();
+      const deviceIds = devices.map(d => d.id);
+
+      // Fetch device locations and statuses in parallel
+      const [locations, statuses] = await Promise.all([
+        getAllDeviceLocations(deviceIds),
+        getAllDeviceStatuses(deviceIds)
+      ]);
 
       // Update devices with location and status information
-      const updatedDevices = devices.map(device => {
-        const locationData = locations.deviceLocations.find(loc => loc.deviceId === device.id);
-        const statusData = statuses.deviceStatuses.find(stat => stat.deviceId === device.id);
+      const updatedDevices = devices.map((device, index) => {
+        const locationData = locations[index]?.deviceLocations?.[0];
+        const statusData = statuses[index]?.deviceStatuses?.[0];
         
         let updatedDevice = { ...device, lastUpdated: new Date().toISOString() };
         
@@ -116,40 +117,6 @@ export default function DashboardPage() {
       });
       
       setDevices(updatedDevices);
-      
-      // Check for alerts (e.g., unreachable devices, low battery)
-      statuses.deviceStatuses.forEach(status => {
-        if (status.status === 'UNREACHABLE') {
-          // Device is unreachable - create alert
-          const device = devices.find(d => d.id === status.deviceId);
-          if (device) {
-            addAlert({
-              id: uuidv4(),
-              type: AlertType.DEVICE_OFFLINE,
-              severity: AlertSeverity.ERROR,
-              timestamp: new Date().toISOString(),
-              deviceId: device.id,
-              message: `Device ${device.name} is unreachable: ${status.error?.message || 'Unknown error'}`,
-              acknowledged: false,
-            });
-          }
-        } else if (status.networkInfo?.batteryLevel < 25) {
-          // Low battery - create alert
-          const device = devices.find(d => d.id === status.deviceId);
-          if (device) {
-            addAlert({
-              id: uuidv4(),
-              type: AlertType.BATTERY_LOW,
-              severity: AlertSeverity.WARNING,
-              timestamp: new Date().toISOString(),
-              deviceId: device.id,
-              message: `Low battery (${status.networkInfo.batteryLevel}%) on device ${device.name}`,
-              acknowledged: false,
-            });
-          }
-        }
-      });
-      
       setLoading(false);
     } catch (error) {
       console.error('Error updating device data:', error);
