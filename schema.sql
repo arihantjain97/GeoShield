@@ -1,11 +1,4 @@
-/* 
-Represents every asset tracked in the system. 
-Used by:
-	•	Devices List page
-	•	Device count (Dashboard)
-	•	Dashboard side panel (device details)
-*/
-
+-- Devices registered in the system
 CREATE TABLE devices (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
@@ -15,30 +8,7 @@ CREATE TABLE devices (
     last_updated TIMESTAMP DEFAULT NOW()
 );
 
-/* 
-Holds live device signal & battery info.
-Used by:
-Device detail sidebar in Dashboard view
-*/
-
-CREATE TABLE device_status (
-    device_id UUID REFERENCES devices(id) ON DELETE CASCADE,
-    signal_strength TEXT,
-    network_type TEXT,
-    battery_level TEXT,
-    connectivity_status TEXT CHECK (connectivity_status IN ('CONNECTED_DATA', 'DISCONNECTED')),
-    last_updated TIMESTAMP DEFAULT NOW(),
-    PRIMARY KEY (device_id)
-);
-
-/* 
-Represents the last known location (area) of a device..
-Used by:
-	•	Map markers
-	•	Geofence verification logic
-	•	Device movement simulation
-*/
-
+-- Last known location of each device (circular area)
 CREATE TABLE device_location (
     device_id UUID REFERENCES devices(id) ON DELETE CASCADE,
     area_type TEXT CHECK (area_type IN ('CIRCLE')),
@@ -49,9 +19,18 @@ CREATE TABLE device_location (
     PRIMARY KEY (device_id)
 );
 
-/* 
-User-defined geofence areas (both circle and polygon).
-*/
+-- Signal and connectivity status per device
+CREATE TABLE device_status (
+    device_id UUID REFERENCES devices(id) ON DELETE CASCADE,
+    signal_strength TEXT,
+    network_type TEXT,
+    battery_level TEXT,
+    connectivity_status TEXT CHECK (connectivity_status IN ('CONNECTED_DATA', 'DISCONNECTED')),
+    last_updated TIMESTAMP DEFAULT NOW(),
+    PRIMARY KEY (device_id)
+);
+
+-- User-defined geofences (circle or polygon)
 CREATE TABLE geofences (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
@@ -61,26 +40,39 @@ CREATE TABLE geofences (
     geofence_type TEXT CHECK (geofence_type IN ('CIRCLE', 'POLYGON')) NOT NULL
 );
 
-/* 
-Extra table for circular geofences (center + radius).
-*/
+-- Geofence as a circle (center and radius)
 CREATE TABLE geofence_circle (
     geofence_id UUID PRIMARY KEY REFERENCES geofences(id) ON DELETE CASCADE,
-    center_latitude DOUBLE PRECISION,
-    center_longitude DOUBLE PRECISION,
-    radius DOUBLE PRECISION
+    center_latitude DOUBLE PRECISION NOT NULL,
+    center_longitude DOUBLE PRECISION NOT NULL,
+    radius DOUBLE PRECISION NOT NULL
 );
 
-/* 
-Stores each vertex of polygon geofences.
-Used by:
-	•	Geofence creation modal
-	•	Map overlay for geofences
-*/
+-- Geofence as a polygon (multiple vertices)
 CREATE TABLE geofence_polygon (
     id SERIAL PRIMARY KEY,
     geofence_id UUID REFERENCES geofences(id) ON DELETE CASCADE,
     point_order INTEGER,
     latitude DOUBLE PRECISION,
     longitude DOUBLE PRECISION
+);
+
+-- Cell tower master table with position + signal radius
+CREATE TABLE cell_towers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    cell_id TEXT UNIQUE NOT NULL,
+    latitude DOUBLE PRECISION NOT NULL,
+    longitude DOUBLE PRECISION NOT NULL,
+    coverage_radius DOUBLE PRECISION NOT NULL,
+    operator TEXT,
+    last_updated TIMESTAMP DEFAULT NOW()
+);
+
+-- Cell tower coverage mapping to geofence validation
+CREATE TABLE geofence_cells (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    geofence_id UUID REFERENCES geofences(id) ON DELETE CASCADE,
+    cell_id TEXT REFERENCES cell_towers(cell_id) ON DELETE CASCADE,
+    validity TEXT CHECK (validity IN ('FULL', 'PARTIAL', 'NONE')) NOT NULL,
+    checked_at TIMESTAMP DEFAULT NOW()
 );

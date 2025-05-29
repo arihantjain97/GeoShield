@@ -9,69 +9,43 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-
-interface Device {
-  id: string;
-  name: string;
-  type: string;
-  status: "active" | "inactive";
-  simNumber: string;
-  lastUpdated: string;
-}
+import { Device } from "@/types/device";
 
 export default function DevicesPage() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [isClient, setIsClient] = useState(false);
+  const [loading, setLoading] = useState(true);
 
+  // Ensure rendering only happens on the client side
   useEffect(() => {
     setIsClient(true);
-    const initialDevices: Device[] = [
-      {
-        id: "1",
-        name: "Armored Truck #1",
-        type: "VEHICLE",
-        status: "active",
-        simNumber: "65912345678",
-        lastUpdated: "2 minutes ago",
-      },
-      {
-        id: "2",
-        name: "Armored Truck #2",
-        type: "VEHICLE",
-        status: "active",
-        simNumber: "65912345679",
-        lastUpdated: "2 minutes ago",
-      },
-      {
-        id: "3",
-        name: "Guard #1 Mobile",
-        type: "PERSONNEL",
-        status: "active",
-        simNumber: "65912345680",
-        lastUpdated: "2 minutes ago",
-      },
-      {
-        id: "4",
-        name: "High-Value Container",
-        type: "CONTAINER",
-        status: "active",
-        simNumber: "65912345681",
-        lastUpdated: "2 minutes ago",
-      },
-      {
-        id: "5",
-        name: "Backup Tracker",
-        type: "ASSET",
-        status: "inactive",
-        simNumber: "65912345682",
-        lastUpdated: "2 minutes ago",
-      },
-    ];
-    setDevices(initialDevices);
+    loadDevices();
   }, []);
 
+  const loadDevices = async () => {
+  try {
+    const res = await fetch("/api/devices");
+    if (!res.ok) throw new Error("Fetch failed");
+    const data = await res.json();
+    setDevices(Array.isArray(data) ? data : []);
+  } catch (error) {
+    console.error("Failed to load device list:", error);
+  } finally {
+    setLoading(false);
+  }
+};
+
   if (!isClient) {
-    return null; // Prevent hydration mismatch by not rendering anything on server
+    return null; // Prevent hydration mismatch
+  }
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <h1 className="text-2xl font-bold mb-1">Devices</h1>
+        <p className="text-muted-foreground mb-6">Loading devices...</p>
+      </div>
+    );
   }
 
   return (
@@ -107,6 +81,14 @@ export default function DevicesPage() {
 function DeviceRow({ device }: { device: Device }) {
   const [open, setOpen] = useState(false);
 
+  const formatLastUpdated = (timestamp: string) => {
+    const date = new Date(timestamp);
+    return new Intl.RelativeTimeFormat("en", { numeric: "auto" }).format(
+      -Math.round((Date.now() - date.getTime()) / 60000),
+      "minutes"
+    );
+  };
+
   return (
     <tr className="border-t hover:bg-muted/50 transition-colors">
       <td className="px-4 py-3 font-medium">{device.name}</td>
@@ -114,16 +96,17 @@ function DeviceRow({ device }: { device: Device }) {
       <td className="px-4 py-3">
         <span
           className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${
-            device.status === "active"
+            device.status === "ACTIVE"
               ? "bg-green-100 text-green-800"
               : "bg-gray-100 text-gray-800"
           }`}
         >
-          {device.status.charAt(0).toUpperCase() + device.status.slice(1)}
+          {device.status.charAt(0).toUpperCase() +
+            device.status.slice(1).toLowerCase()}
         </span>
       </td>
       <td className="px-4 py-3">{device.simNumber}</td>
-      <td className="px-4 py-3">{device.lastUpdated}</td>
+      <td className="px-4 py-3">{formatLastUpdated(device.lastUpdated)}</td>
       <td className="px-4 py-3 relative">
         <DropdownMenu open={open} onOpenChange={setOpen}>
           <DropdownMenuTrigger asChild>
