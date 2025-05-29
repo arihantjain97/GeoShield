@@ -15,6 +15,62 @@ const pool = new Pool({
   ssl: false, // Set to true if needed
 });
 
+// Insert a new geofence record into the main geofences table
+export async function createGeofence(id: string, name: string, type: string): Promise<void> {
+  try {
+    await pool.query(`
+      INSERT INTO geofences (id, name, geofence_type)
+      VALUES ($1, $2, $3)
+    `, [id, name, type]);
+    console.log(`Inserted geofence: ${id}, type: ${type}`);
+  } catch (err) {
+    console.error('Error inserting geofence:', err);
+    throw err;
+  }
+}
+
+// Insert geofence details for a circular geofence
+export async function insertCircleGeofence(geofenceId: string, latitude: number, longitude: number, radius: number): Promise<void> {
+  try {
+    await pool.query(`
+      INSERT INTO geofence_circle (geofence_id, center_latitude, center_longitude, radius)
+      VALUES ($1, $2, $3, $4)
+    `, [geofenceId, latitude, longitude, radius]);
+    console.log(`Inserted circle geofence data for: ${geofenceId}`);
+  } catch (err) {
+    console.error('Error inserting circle geofence:', err);
+    throw err;
+  }
+}
+
+// Insert geofence details for a polygon geofence
+export async function insertPolygonGeofence(
+  geofenceId: string,
+  coordinates: { latitude: number, longitude: number }[]
+): Promise<void> {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    for (let i = 0; i < coordinates.length; i++) {
+      const { latitude, longitude } = coordinates[i];
+      await client.query(`
+        INSERT INTO geofence_polygon (geofence_id, point_order, latitude, longitude)
+        VALUES ($1, $2, $3, $4)
+      `, [geofenceId, i, latitude, longitude]);
+    }
+
+    await client.query('COMMIT');
+    console.log(`Inserted polygon geofence data for: ${geofenceId}`);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Error inserting polygon geofence:', err);
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 // Fetches all devices from the database
 export async function getAllDevices(): Promise<Device[]> {
   try {

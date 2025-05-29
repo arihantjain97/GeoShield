@@ -12,68 +12,73 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   const updateDeviceData = async () => {
-  try {
-    const devicesRes = await fetch('/api/devices');
-    const dbDevices = await devicesRes.json();
+    try {
+      const devicesRes = await fetch('/api/devices');
+      const dbDevices = await devicesRes.json();
 
-    if (dbDevices.length > 0) {
-      const deviceIds = dbDevices.map((d: any) => d.id);
+      if (dbDevices.length > 0) {
+        const deviceIds = dbDevices.map((d: any) => d.id);
 
-      const [locationsRes, statusesRes] = await Promise.all([
-        fetch('/api/device-location', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ deviceIds }),
-        }),
-        fetch('/api/device-status', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ deviceIds }),
-        }),
-      ]);
+        const [locationsRes, statusesRes] = await Promise.all([
+          fetch('/api/device-location', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ deviceIds }),
+          }),
+          fetch('/api/device-status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ deviceIds }),
+          }),
+        ]);
 
-      const locationsData = await locationsRes.json();
-      const statusesData = await statusesRes.json();
+        const locationsData = await locationsRes.json();
+        const statusesData = await statusesRes.json();
 
-      const updatedDevices = dbDevices.map((device: any) => {
-        const locationData = locationsData.deviceLocations?.find((l: any) => l.deviceId === device.id);
-        const statusData = statusesData.deviceStatuses?.find((s: any) => s.deviceId === device.id);
+        const updatedDevices = dbDevices.map((device: any) => {
+          const locationData = locationsData.deviceLocations?.find((l: any) => l.deviceId === device.id);
+          const statusData = statusesData.deviceStatuses?.find((s: any) => s.deviceId === device.id);
 
-        let updatedDevice = { ...device, lastUpdated: new Date().toISOString() };
+          let updatedDevice = { ...device, lastUpdated: new Date().toISOString() };
 
-        if (locationData && locationData.status === 'VALID') {
-          updatedDevice.lastLocation = {
-            latitude: locationData.location!.latitude,
-            longitude: locationData.location!.longitude,
-            accuracy: locationData.location!.accuracy,
-            timestamp: locationData.location!.timestamp,
-          };
-        }
+          if (locationData && locationData.status === 'VALID') {
+            // Add slight jitter to latitude/longitude to avoid exact overlaps on map
+            const jitter = () => (Math.random() - 0.5) * 0.0001;
 
-        if (statusData && statusData.status === 'REACHABLE') {
-          updatedDevice.networkInfo = {
-            signalStrength: statusData.networkInfo!.signalStrength,
-            networkType: statusData.networkInfo!.networkType,
-            batteryLevel: statusData.networkInfo!.batteryLevel,
-          };
-        }
+            updatedDevice.lastLocation = {
+              latitude: Number(locationData.location!.latitude) + jitter(),
+              longitude: Number(locationData.location!.longitude) + jitter(),
+              accuracy: Number(locationData.location!.accuracy),
+              timestamp: locationData.location!.timestamp,
+            };
+          }
 
-        return updatedDevice;
-      });
+          if (statusData && statusData.status === 'REACHABLE') {
+            updatedDevice.networkInfo = {
+              signalStrength: statusData.networkInfo!.signalStrength,
+              networkType: statusData.networkInfo!.networkType,
+              batteryLevel: statusData.networkInfo!.batteryLevel,
+            };
+          }
 
-      setDevices(updatedDevices);
+          return updatedDevice;
+        });
+
+        updatedDevices.forEach((d: any) => {
+          if (!d.lastLocation) {
+            console.warn(`⚠️ Device ${d.name} (${d.id}) has no valid lastLocation`);
+          }
+        });
+
+        setDevices(updatedDevices);
+      }
+    } catch (error) {
+      console.error("DashboardPage: Failed to update device data:", error);
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error("DashboardPage: Failed to update device data:", error);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
-
-
-  
-  // Load data once and poll periodically
   useEffect(() => {
     updateDeviceData();
     const interval = setInterval(updateDeviceData, config.api.pollingInterval);

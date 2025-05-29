@@ -122,50 +122,71 @@ export function GeofenceDialog({
   };
   
   // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
+  // Submit geofence data to backend API
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Create shape based on type
-    let shape: CircleGeofence | PolygonGeofence;
-    
-    if (formState.geofenceType === GeofenceType.CIRCLE) {
-      shape = {
-        type: GeofenceType.CIRCLE,
-        center: {
-          latitude: parseFloat(formState.centerLat.toString()),
-          longitude: parseFloat(formState.centerLng.toString()),
-        },
-        radius: parseFloat(formState.radius.toString()),
+
+    try {
+      // Prepare shape data based on geofence type
+      let shape: CircleGeofence | PolygonGeofence;
+
+      if (formState.geofenceType === GeofenceType.CIRCLE) {
+        shape = {
+          type: GeofenceType.CIRCLE,
+          center: {
+            latitude: parseFloat(formState.centerLat.toString()),
+            longitude: parseFloat(formState.centerLng.toString()),
+          },
+          radius: parseFloat(formState.radius.toString()),
+        } as CircleGeofence;
+      } else {
+        if (formState.coordinates.length < 3) {
+          alert('Polygon must have at least 3 points.');
+          return;
+        }
+        shape = {
+          type: GeofenceType.POLYGON,
+          coordinates: formState.coordinates,
+        } as PolygonGeofence;
+      }
+
+      const payload = {
+        name: formState.name,
+        description: formState.description || undefined,
+        priority: formState.priority,
+        active: formState.active,
+        type: formState.geofenceType,
       };
-    } else {
-      shape = {
-        type: GeofenceType.POLYGON,
-        coordinates: formState.coordinates,
-      };
-    }
-    
-    const geofenceData: Partial<Geofence> = {
-      name: formState.name,
-      description: formState.description || undefined,
-      shape,
-      priority: formState.priority,
-      active: formState.active,
-      updatedAt: new Date().toISOString(),
-    };
-    
-    if (geofenceId) {
-      // Update existing geofence
-      updateGeofence(geofenceId, geofenceData);
-    } else {
-      // Add new geofence
-      addGeofence({
-        id: uuidv4(),
-        ...geofenceData as Geofence,
-        createdAt: new Date().toISOString(),
+
+      // POST geofence to API
+      const res = await fetch('/api/geofences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...payload, shape }),
       });
+
+      if (!res.ok) {
+        console.error('Failed to create geofence', await res.text());
+        alert('Failed to create geofence.');
+        return;
+      }
+
+      const { id } = await res.json();
+
+      // Update frontend store
+      addGeofence({
+        id,
+        ...payload,
+        shape,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Exception while creating geofence:', error);
+      alert('An unexpected error occurred.');
     }
-    
-    onOpenChange(false);
   };
   
   return (

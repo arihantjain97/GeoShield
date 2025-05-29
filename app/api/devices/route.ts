@@ -5,6 +5,7 @@ import { getAllDevices } from '@/lib/db';
 export async function GET() {
   try {
     const devices = await getAllDevices();
+    
     return NextResponse.json(devices);
   } catch (error) {
     console.error("API /api/devices failed:", error);

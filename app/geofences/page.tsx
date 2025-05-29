@@ -9,34 +9,34 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { GeofenceDialog } from '@/components/geofences/geofence-dialog';
 import { GeofenceMap } from '@/components/geofences/geofence-map';
-import { GeofencePriority } from '@/types/geofence';
+import { Geofence, GeofencePriority } from '@/types/geofence';
 
 export default function GeofencesPage() {
-  const { geofences, removeGeofence } = useGeoShieldStore();
+  const { geofences, addGeofence, removeGeofence } = useGeoShieldStore();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingGeofence, setEditingGeofence] = useState<string | null>(null);
   const [showMap, setShowMap] = useState(true);
-  
+
   // Handle adding a new geofence
-  const handleAddGeofence = () => {
+  const handleAddGeofence = async () => {
     setEditingGeofence(null);
     setIsDialogOpen(true);
   };
-  
+
   // Handle editing a geofence
   const handleEditGeofence = (geofenceId: string) => {
     setEditingGeofence(geofenceId);
     setIsDialogOpen(true);
   };
-  
+
   // Handle deleting a geofence
   const handleDeleteGeofence = (geofenceId: string) => {
     if (confirm('Are you sure you want to delete this geofence?')) {
       removeGeofence(geofenceId);
     }
   };
-  
-  // Helper function to render priority badge
+
+  // Render geofence priority badge
   const renderPriorityBadge = (priority: GeofencePriority) => {
     switch (priority) {
       case 'LOW':
@@ -51,7 +51,7 @@ export default function GeofencesPage() {
         return <Badge variant="outline">{priority}</Badge>;
     }
   };
-  
+
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
@@ -61,7 +61,7 @@ export default function GeofencesPage() {
             Create and manage geofenced areas for your devices
           </p>
         </div>
-        
+
         <div className="flex space-x-2">
           <Button variant="outline" size="sm" onClick={() => setShowMap(!showMap)}>
             <Map className="h-4 w-4 mr-2" />
@@ -73,16 +73,15 @@ export default function GeofencesPage() {
           </Button>
         </div>
       </div>
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Geofence list */}
         <div className={showMap ? "lg:col-span-1" : "lg:col-span-3"}>
           <Card className="p-4">
             <h2 className="text-xl font-semibold mb-4">Geofence List</h2>
-            
+
             {geofences.length > 0 ? (
               <div className="space-y-4">
-                {geofences.map(geofence => (
+                {geofences.map((geofence) => (
                   <div key={geofence.id} className="border rounded-lg p-4">
                     <div className="flex items-start justify-between">
                       <div>
@@ -91,11 +90,9 @@ export default function GeofencesPage() {
                           {geofence.description || 'No description provided'}
                         </p>
                       </div>
-                      <div>
-                        {renderPriorityBadge(geofence.priority)}
-                      </div>
+                      <div>{renderPriorityBadge(geofence.priority)}</div>
                     </div>
-                    
+
                     <div className="flex items-center mt-2">
                       <span className="text-xs text-muted-foreground">
                         Type: {geofence.shape.type}
@@ -105,9 +102,9 @@ export default function GeofencesPage() {
                         {geofence.active ? 'Active' : 'Inactive'}
                       </span>
                     </div>
-                    
+
                     <Separator className="my-3" />
-                    
+
                     <div className="flex justify-end space-x-2">
                       <Button variant="outline" size="sm" onClick={() => handleEditGeofence(geofence.id)}>
                         <Edit className="h-4 w-4 mr-2" />
@@ -136,14 +133,13 @@ export default function GeofencesPage() {
             )}
           </Card>
         </div>
-        
-        {/* Map view */}
+
         {showMap && (
           <div className="lg:col-span-2">
             <Card className="overflow-hidden">
               <div className="h-[calc(100vh-12rem)]">
-                <GeofenceMap 
-                  geofences={geofences} 
+                <GeofenceMap
+                  geofences={geofences}
                   onAddGeofence={handleAddGeofence}
                   onEditGeofence={handleEditGeofence}
                 />
@@ -152,10 +148,10 @@ export default function GeofencesPage() {
           </div>
         )}
       </div>
-      
-      <GeofenceDialog 
-        open={isDialogOpen} 
-        onOpenChange={setIsDialogOpen} 
+
+      <GeofenceDialog
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
         geofenceId={editingGeofence}
       />
     </div>
