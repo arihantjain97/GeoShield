@@ -97,7 +97,9 @@ export async function getDeviceStatuses(deviceIds: string[]): Promise<DeviceStat
     `, [deviceIds]);
 
     const deviceStatuses = result.rows.map(row => {
-      const batteryLevel = parseInt(row.battery_level) || 0;
+      //const batteryLevel = parseInt(row.battery_level) || 0;
+      const batteryLevel = row.battery_level ? parseInt(row.battery_level.replace('%', '')) : 0;
+      
       const signalStrength = row.signal_strength === 'N/A' ? 'NONE' :
         batteryLevel > 80 ? 'EXCELLENT' :
         batteryLevel > 60 ? 'GOOD' :

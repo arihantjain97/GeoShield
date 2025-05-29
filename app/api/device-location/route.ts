@@ -1,4 +1,5 @@
 // app/api/device-location/route.ts
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getDeviceLocations } from '@/lib/db';
 
