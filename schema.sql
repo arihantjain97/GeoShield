@@ -30,7 +30,7 @@ CREATE TABLE device_status (
     PRIMARY KEY (device_id)
 );
 
--- User-defined geofences (circle or polygon)
+-- User-defined geofences
 CREATE TABLE geofences (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
@@ -40,7 +40,7 @@ CREATE TABLE geofences (
     geofence_type TEXT CHECK (geofence_type IN ('CIRCLE', 'POLYGON')) NOT NULL
 );
 
--- Geofence as a circle (center and radius)
+-- Geofence as a circle
 CREATE TABLE geofence_circle (
     geofence_id UUID PRIMARY KEY REFERENCES geofences(id) ON DELETE CASCADE,
     center_latitude DOUBLE PRECISION NOT NULL,
@@ -48,7 +48,7 @@ CREATE TABLE geofence_circle (
     radius DOUBLE PRECISION NOT NULL
 );
 
--- Geofence as a polygon (multiple vertices)
+-- Geofence as a polygon
 CREATE TABLE geofence_polygon (
     id SERIAL PRIMARY KEY,
     geofence_id UUID REFERENCES geofences(id) ON DELETE CASCADE,
@@ -57,22 +57,24 @@ CREATE TABLE geofence_polygon (
     longitude DOUBLE PRECISION
 );
 
--- Cell tower master table with position + signal radius
-CREATE TABLE cell_towers (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    cell_id TEXT UNIQUE NOT NULL,
+-- Cell sectors (individual ECIs), each representing a unique sector of a gNodeB
+CREATE TABLE cell_sectors (
+    eci TEXT PRIMARY KEY,
+    gnodeb_id TEXT NOT NULL,
+    sector_id INTEGER NOT NULL,
     latitude DOUBLE PRECISION NOT NULL,
     longitude DOUBLE PRECISION NOT NULL,
     coverage_radius DOUBLE PRECISION NOT NULL,
     operator TEXT,
-    last_updated TIMESTAMP DEFAULT NOW()
+    last_updated TIMESTAMP DEFAULT NOW(),
+    UNIQUE (gnodeb_id, sector_id)
 );
 
--- Cell tower coverage mapping to geofence validation
+-- Mapping of geofences to cell sectors (ECIs)
 CREATE TABLE geofence_cells (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     geofence_id UUID REFERENCES geofences(id) ON DELETE CASCADE,
-    cell_id TEXT REFERENCES cell_towers(cell_id) ON DELETE CASCADE,
+    eci TEXT REFERENCES cell_sectors(eci) ON DELETE CASCADE,
     validity TEXT CHECK (validity IN ('FULL', 'PARTIAL', 'NONE')) NOT NULL,
     checked_at TIMESTAMP DEFAULT NOW()
 );
