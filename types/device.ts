@@ -8,9 +8,10 @@ export enum DeviceType {
 }
 
 export enum DeviceStatus {
-  ACTIVE = 'ACTIVE',
-  INACTIVE = 'INACTIVE',
-  MAINTENANCE = 'MAINTENANCE',
+  CONNECTED_DATA = 'CONNECTED_DATA',
+  CONNECTED_DATA_SMS = 'CONNECTED_DATA_SMS',
+  CONNECTED_SMS = 'CONNECTED_SMS',
+  INACTIVE = ''
 }
 
 export enum NetworkType {
@@ -54,4 +55,5 @@ export interface Device {
   lastUpdated: string; // ISO date string
   lastLocation?: DeviceLocation;
   networkInfo?: DeviceNetworkInfo;
+  connectivityStatus?: string[],
 }

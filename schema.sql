@@ -25,7 +25,7 @@ CREATE TABLE device_status (
     signal_strength TEXT,
     network_type TEXT,
     battery_level TEXT,
-    connectivity_status TEXT CHECK (connectivity_status IN ('CONNECTED_DATA', 'DISCONNECTED')),
+    connectivity_status TEXT CHECK (connectivity_status IN ('CONNECTED_DATA', 'CONNECTED_DATA_SMS','CONNECTED_SMS','INACTIVE')),
     last_updated TIMESTAMP DEFAULT NOW(),
     PRIMARY KEY (device_id)
 );

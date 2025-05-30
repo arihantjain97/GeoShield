@@ -17,6 +17,5 @@ export interface DeviceStatusData {
 
 export interface DeviceStatusResponse {
   deviceStatuses: DeviceStatusData[];
-  requestId: string;
   timestamp: string;
 }

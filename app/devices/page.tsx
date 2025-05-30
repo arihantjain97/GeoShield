@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Device } from "@/types/device";
+import {getCAMARADeviceStatus} from "../api/device-status/route"
 
 export default function DevicesPage() {
   const [devices, setDevices] = useState<Device[]>([]);
@@ -27,6 +28,12 @@ export default function DevicesPage() {
     const res = await fetch("/api/devices");
     if (!res.ok) throw new Error("Fetch failed");
     const data = await res.json();
+
+    for (const device of data) {
+        const response = await getCAMARADeviceStatus(device.simNumber);
+        device.connectivityStatus = response;
+    }
+    
     setDevices(Array.isArray(data) ? data : []);
   } catch (error) {
     console.error("Failed to load device list:", error);
@@ -94,15 +101,10 @@ function DeviceRow({ device }: { device: Device }) {
       <td className="px-4 py-3 font-medium">{device.name}</td>
       <td className="px-4 py-3">{device.type}</td>
       <td className="px-4 py-3">
-        <span
-          className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${
-            device.status === "ACTIVE"
-              ? "bg-green-100 text-green-800"
-              : "bg-gray-100 text-gray-800"
-          }`}
-        >
-          {device.status.charAt(0).toUpperCase() +
-            device.status.slice(1).toLowerCase()}
+        <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold`}>
+        {device.connectivityStatus?.map((status, index) => (
+        <span key={index}  className="mr-2">{status}</span>
+         ))}
         </span>
       </td>
       <td className="px-4 py-3">{device.simNumber}</td>
@@ -118,9 +120,6 @@ function DeviceRow({ device }: { device: Device }) {
             <DropdownMenuContent align="end" className="z-50">
               <DropdownMenuItem>
                 <Pencil className="mr-2 h-4 w-4" /> Edit
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <FileText className="mr-2 h-4 w-4" /> View Details
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <Trash2 className="mr-2 h-4 w-4" /> Delete
