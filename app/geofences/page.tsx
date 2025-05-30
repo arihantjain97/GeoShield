@@ -45,6 +45,33 @@ export default function GeofencesPage() {
     setIsDialogOpen(true);
   };
 
+
+  const handleDialogSubmit = async (data: Partial<Geofence>) => {
+    try {
+      const res = await fetch('/api/geofences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      if (!res.ok) throw new Error('Failed to create geofence');
+
+      const { id } = await res.json();
+
+      // Add to local store
+      addGeofence({
+        id,
+        ...data,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as Geofence);
+
+      setIsDialogOpen(false);
+    } catch (err) {
+      console.error('Failed to add geofence:', err);
+    }
+  };
+
   // Handle editing a geofence
   const handleEditGeofence = (geofenceId: string) => {
     setEditingGeofence(geofenceId);
@@ -182,7 +209,10 @@ export default function GeofencesPage() {
       <GeofenceDialog
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
-        geofenceId={editingGeofence}
+        geofence={
+          geofences.find((g) => g.id === editingGeofence) || null
+        }
+        onSubmit={handleDialogSubmit}
       />
     </div>
   );
