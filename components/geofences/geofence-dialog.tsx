@@ -110,11 +110,17 @@ export function GeofenceDialog({
   };
 
   // ✅ Dedicated handler to update geofence type cleanly and preserve Tabs state
-  const handleGeofenceTypeChange = (value: GeofenceType) => {
-    setFormState(prev => ({ ...prev, geofenceType: value }));
+  const handleGeofenceTypeChange = (value: string) => {
+    //setFormState(prev => ({ ...prev, geofenceType: value }));
+    setFormState(prev => ({
+      ...prev,
+      geofenceType: value as GeofenceType,
+    }));
   };
 
   const handleSwitchChange = (name: string, checked: boolean) => {
+    //setFormState(prev => ({ ...prev, [name]: checked }));
+    console.log(`${name} set to`, checked); // ✅ log switch toggle
     setFormState(prev => ({ ...prev, [name]: checked }));
   };
 
@@ -243,7 +249,7 @@ export function GeofenceDialog({
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder="Select priority" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-white">
                     <SelectItem value={GeofencePriority.LOW}>Low</SelectItem>
                     <SelectItem value={GeofencePriority.MEDIUM}>Medium</SelectItem>
                     <SelectItem value={GeofencePriority.HIGH}>High</SelectItem>
@@ -258,7 +264,7 @@ export function GeofenceDialog({
                   <Switch
                     id="active"
                     checked={formState.active}
-                    onCheckedChange={(checked) => handleSwitchChange('active', checked)}
+                    onChange={(e) => handleSwitchChange('active', e.target.checked)}
                   />
                   <Label htmlFor="active" className="cursor-pointer">
                     {formState.active ? 'Active' : 'Inactive'}
@@ -276,10 +282,10 @@ export function GeofenceDialog({
                 className="w-full"
               >
                 <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value={GeofenceType.CIRCLE} asChild>
+                  <TabsTrigger value={GeofenceType.CIRCLE}>
                     <button type="button">Circle</button>
                   </TabsTrigger>
-                  <TabsTrigger value={GeofenceType.POLYGON} asChild>
+                  <TabsTrigger value={GeofenceType.POLYGON}>
                     <button type="button">Polygon</button>
                   </TabsTrigger>
                 </TabsList>
@@ -406,7 +412,7 @@ export function GeofenceDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit">
+            <Button type="submit" className="bg-white text-black border border-gray-300 hover:bg-gray-100">
               {geofenceId ? 'Save Changes' : 'Add Geofence'}
             </Button>
           </DialogFooter>
