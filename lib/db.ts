@@ -15,6 +15,108 @@ const pool = new Pool({
   ssl: false, // Set to true if needed
 });
 
+// Fetch all geofences with their shape details
+export async function fetchAllGeofencesWithShape(): Promise<any[]> {
+  const client = await pool.connect();
+  try {
+    console.log('Fetching all geofences with shape data...');
+    const result = await client.query(`
+      SELECT
+        g.id,
+        g.name,
+        g.geofence_type,
+        g.description,
+        g.priority,
+        g.active,
+        gc.center_latitude,
+        gc.center_longitude,
+        gc.radius,
+        gp.point_order,
+        gp.latitude as poly_latitude,
+        gp.longitude as poly_longitude
+      FROM geofences g
+      LEFT JOIN geofence_circle gc ON g.id = gc.geofence_id
+      LEFT JOIN geofence_polygon gp ON g.id = gp.geofence_id
+      ORDER BY g.id, gp.point_order
+    `);
+
+    const geofenceMap: Record<string, any> = {};
+
+    for (const row of result.rows) {
+      if (!geofenceMap[row.id]) {
+        geofenceMap[row.id] = {
+          id: row.id,
+          name: row.name,
+          type: row.geofence_type,
+          description: row.description,
+          priority: row.priority,
+          active: row.active,
+          shape: row.geofence_type === 'CIRCLE' ? {
+            type: 'CIRCLE',
+            center: {
+              latitude: row.center_latitude,
+              longitude: row.center_longitude
+            },
+            radius: row.radius
+          } : {
+            type: 'POLYGON',
+            coordinates: []
+          }
+        };
+      }
+
+      if (row.geofence_type === 'POLYGON' && row.poly_latitude !== null && row.poly_longitude !== null) {
+        geofenceMap[row.id].shape.coordinates.push({
+          latitude: row.poly_latitude,
+          longitude: row.poly_longitude
+        });
+      }
+    }
+
+    const geofences = Object.values(geofenceMap);
+    console.log(`Retrieved ${geofences.length} geofences.`);
+    return geofences;
+  } catch (err) {
+    console.error('Error fetching geofences with shape:', err);
+    throw new Error('Unable to retrieve geofence data.');
+  } finally {
+    client.release();
+  }
+}
+
+//Update Geofence (Metadata only)
+export async function updateGeofence(
+  id: string,
+  name: string,
+  description: string,
+  priority: string,
+  active: boolean
+): Promise<void> {
+  try {
+    await pool.query(`
+      UPDATE geofences
+      SET name = $2, description = $3, priority = $4, active = $5
+      WHERE id = $1
+    `, [id, name, description, priority, active]);
+    console.log(`Updated geofence ${id}`);
+  } catch (err) {
+    console.error('Error updating geofence:', err);
+    throw err;
+  }
+}
+
+// Delete a geofence record from the main geofences table
+export async function deleteGeofence(geofenceId: string): Promise<void> {
+  try {
+    await pool.query(`DELETE FROM geofences WHERE id = $1`, [geofenceId]);
+    console.log(`Deleted geofence ${geofenceId}`);
+  } catch (err) {
+    console.error('Error deleting geofence:', err);
+    throw err;
+  }
+}
+
+
 // Insert a new geofence record into the main geofences table
 export async function createGeofence(
   id: string,

@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { createGeofence, insertCircleGeofence, insertPolygonGeofence } from '@/lib/db';
+import { createGeofence, insertCircleGeofence, insertPolygonGeofence, fetchAllGeofencesWithShape } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
@@ -45,6 +45,16 @@ export async function POST(req: NextRequest) {
 
   } catch (err) {
     console.error('Failed to create geofence:', err);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}
+
+export async function GET() {
+  try {
+    const geofences = await fetchAllGeofencesWithShape();
+    return NextResponse.json(geofences, { status: 200 });
+  } catch (err) {
+    console.error('Failed to fetch geofences:', err);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

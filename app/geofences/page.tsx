@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useGeoShieldStore } from '@/lib/store';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,10 +12,32 @@ import { GeofenceMap } from '@/components/geofences/geofence-map';
 import { Geofence, GeofencePriority } from '@/types/geofence';
 
 export default function GeofencesPage() {
-  const { geofences, addGeofence, removeGeofence } = useGeoShieldStore();
+  const {
+    geofences,
+    addGeofence,
+    updateGeofence,
+    removeGeofence,
+    setGeofences
+  } = useGeoShieldStore();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingGeofence, setEditingGeofence] = useState<string | null>(null);
   const [showMap, setShowMap] = useState(true);
+
+  useEffect(() => {
+  const loadGeofences = async () => {
+      try {
+        const res = await fetch('/api/geofences');
+        if (!res.ok) throw new Error('Failed to fetch geofences');
+        const data = await res.json();
+        console.log('Loaded geofences from backend:', data);
+        setGeofences(data);
+      } catch (error) {
+        console.error('Error loading geofences:', error);
+      }
+    };
+    loadGeofences();
+  }, [setGeofences]);
+
 
   // Handle adding a new geofence
   const handleAddGeofence = async () => {
@@ -29,10 +51,18 @@ export default function GeofencesPage() {
     setIsDialogOpen(true);
   };
 
-  // Handle deleting a geofence
-  const handleDeleteGeofence = (geofenceId: string) => {
-    if (confirm('Are you sure you want to delete this geofence?')) {
+  // Delete geofence via API
+  const handleDeleteGeofence = async (geofenceId: string) => {
+    if (!confirm('Are you sure you want to delete this geofence?')) return;
+    try {
+      const res = await fetch(`/api/geofences/${geofenceId}/delete`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) throw new Error('Failed to delete geofence');
+      console.log('Deleted geofence:', geofenceId);
       removeGeofence(geofenceId);
+    } catch (error) {
+      console.error('Error deleting geofence:', error);
     }
   };
 
