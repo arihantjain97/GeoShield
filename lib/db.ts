@@ -16,13 +16,20 @@ const pool = new Pool({
 });
 
 // Insert a new geofence record into the main geofences table
-export async function createGeofence(id: string, name: string, type: string): Promise<void> {
+export async function createGeofence(
+  id: string,
+  name: string,
+  type: string,
+  description: string,
+  priority: string,
+  active: boolean
+): Promise<void> {
   try {
     await pool.query(`
-      INSERT INTO geofences (id, name, geofence_type)
-      VALUES ($1, $2, $3)
-    `, [id, name, type]);
-    console.log(`Inserted geofence: ${id}, type: ${type}`);
+      INSERT INTO geofences (id, name, geofence_type, description, priority, active)
+      VALUES ($1, $2, $3, $4, $5, $6)
+    `, [id, name, type, description, priority, active]);
+    console.log(`Inserted geofence: ${id}, name: ${id}, type: ${type}, description: ${description}, priority: ${priority}, active: ${active}`);
   } catch (err) {
     console.error('Error inserting geofence:', err);
     throw err;

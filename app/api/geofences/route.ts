@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, type, shape } = body;
+    const { name, type, shape, description = '', priority = 'Medium', active = true } = body;
 
     // Validate required fields
     if (!name || !type || !shape) {
@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     const geofenceId = uuidv4();
     console.log(`Creating geofence with ID: ${geofenceId}, type: ${type}`);
 
-    await createGeofence(geofenceId, name, type);
+    await createGeofence(geofenceId, name, type, description, priority, active);
 
     if (type === 'CIRCLE') {
       const { center, radius } = shape;

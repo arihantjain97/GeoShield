@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useGeoShieldStore } from '@/lib/store';
 import { v4 as uuidv4 } from 'uuid';
+
 import { 
   Dialog, 
   DialogContent, 
@@ -44,34 +45,29 @@ export function GeofenceDialog({
   geofenceId
 }: GeofenceDialogProps) {
   const { geofences, addGeofence, updateGeofence } = useGeoShieldStore();
-  
-  // Initial form state
+
   const initialFormState = {
     name: '',
     description: '',
     priority: GeofencePriority.MEDIUM,
     active: true,
     geofenceType: GeofenceType.CIRCLE,
-    // Circle specific
-    centerLat: 1.3521, // Singapore
+    centerLat: 1.3521,
     centerLng: 103.8198,
-    radius: 500, // meters
-    // Polygon specific
+    radius: 500,
     coordinates: [
       { latitude: 1.3521, longitude: 103.8198 },
       { latitude: 1.3541, longitude: 103.8218 },
       { latitude: 1.3501, longitude: 103.8238 },
     ],
   };
-  
+
   const [formState, setFormState] = useState(initialFormState);
-  
-  // Load geofence data if editing
+
   useEffect(() => {
     if (geofenceId) {
       const geofence = geofences.find(g => g.id === geofenceId);
       if (geofence) {
-        // Common fields
         let newFormState = {
           ...initialFormState,
           name: geofence.name,
@@ -80,8 +76,7 @@ export function GeofenceDialog({
           active: geofence.active,
           geofenceType: geofence.shape.type,
         };
-        
-        // Shape specific fields
+
         if (geofence.shape.type === GeofenceType.CIRCLE) {
           const circleShape = geofence.shape as CircleGeofence;
           newFormState = {
@@ -97,37 +92,49 @@ export function GeofenceDialog({
             coordinates: polygonShape.coordinates,
           };
         }
-        
+
         setFormState(newFormState);
       }
     } else {
       setFormState(initialFormState);
     }
   }, [geofenceId, geofences, open]);
-  
-  // Handle form input changes
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormState(prev => ({ ...prev, [name]: value }));
   };
-  
-  // Handle select changes
+
   const handleSelectChange = (name: string, value: string) => {
     setFormState(prev => ({ ...prev, [name]: value }));
   };
-  
-  // Handle switch changes
+
+  // ✅ Dedicated handler to update geofence type cleanly and preserve Tabs state
+  const handleGeofenceTypeChange = (value: GeofenceType) => {
+    setFormState(prev => ({ ...prev, geofenceType: value }));
+  };
+
   const handleSwitchChange = (name: string, checked: boolean) => {
     setFormState(prev => ({ ...prev, [name]: checked }));
   };
-  
-  // Handle form submission
-  // Submit geofence data to backend API
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') e.preventDefault();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const nativeEvent = e.nativeEvent as SubmitEvent;
+    const submitter = nativeEvent?.submitter as HTMLElement;
+
+      // Only submit if the submitter is the real submit button
+    if (!submitter || submitter.tagName !== 'BUTTON' || submitter.textContent?.includes('Add Geofence') === false) {
+      return;
+    }
+
+    console.log('Submitting geofence form with state:', formState); // ✅ Log form submission
 
     try {
-      // Prepare shape data based on geofence type
       let shape: CircleGeofence | PolygonGeofence;
 
       if (formState.geofenceType === GeofenceType.CIRCLE) {
@@ -138,7 +145,7 @@ export function GeofenceDialog({
             longitude: parseFloat(formState.centerLng.toString()),
           },
           radius: parseFloat(formState.radius.toString()),
-        } as CircleGeofence;
+        };
       } else {
         if (formState.coordinates.length < 3) {
           alert('Polygon must have at least 3 points.');
@@ -147,7 +154,7 @@ export function GeofenceDialog({
         shape = {
           type: GeofenceType.POLYGON,
           coordinates: formState.coordinates,
-        } as PolygonGeofence;
+        };
       }
 
       const payload = {
@@ -158,7 +165,6 @@ export function GeofenceDialog({
         type: formState.geofenceType,
       };
 
-      // POST geofence to API
       const res = await fetch('/api/geofences', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -173,7 +179,6 @@ export function GeofenceDialog({
 
       const { id } = await res.json();
 
-      // Update frontend store
       addGeofence({
         id,
         ...payload,
@@ -188,7 +193,7 @@ export function GeofenceDialog({
       alert('An unexpected error occurred.');
     }
   };
-  
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
@@ -200,29 +205,25 @@ export function GeofenceDialog({
               : 'Create a new geofenced area for monitoring devices.'}
           </DialogDescription>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
-            {/* Basic Information */}
             <div className="grid gap-4">
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="name" className="text-right">
-                  Name
-                </Label>
+                <Label htmlFor="name" className="text-right">Name</Label>
                 <Input
                   id="name"
                   name="name"
                   value={formState.name}
                   onChange={handleChange}
+                  onKeyDown={handleKeyDown} // ✅ Prevent Enter from submitting prematurely
                   className="col-span-3"
                   required
                 />
               </div>
-              
+
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="description" className="text-right">
-                  Description
-                </Label>
+                <Label htmlFor="description" className="text-right">Description</Label>
                 <Textarea
                   id="description"
                   name="description"
@@ -232,11 +233,9 @@ export function GeofenceDialog({
                   rows={2}
                 />
               </div>
-              
+
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="priority" className="text-right">
-                  Priority
-                </Label>
+                <Label htmlFor="priority" className="text-right">Priority</Label>
                 <Select
                   value={formState.priority}
                   onValueChange={(value) => handleSelectChange('priority', value)}
@@ -252,11 +251,9 @@ export function GeofenceDialog({
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="active" className="text-right">
-                  Active
-                </Label>
+                <Label htmlFor="active" className="text-right">Active</Label>
                 <div className="flex items-center space-x-2 col-span-3">
                   <Switch
                     id="active"
@@ -269,27 +266,28 @@ export function GeofenceDialog({
                 </div>
               </div>
             </div>
-            
-            {/* Geofence Type and Shape */}
+
+            {/* ✅ Tabs remain stable using state-controlled value */}
             <div className="mt-4">
               <Label className="block mb-2">Geofence Type</Label>
-              <Tabs 
-                defaultValue={formState.geofenceType}
+              <Tabs
                 value={formState.geofenceType}
-                onValueChange={(value) => handleSelectChange('geofenceType', value)}
+                onValueChange={handleGeofenceTypeChange}
                 className="w-full"
               >
                 <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value={GeofenceType.CIRCLE}>Circle</TabsTrigger>
-                  <TabsTrigger value={GeofenceType.POLYGON}>Polygon</TabsTrigger>
+                  <TabsTrigger value={GeofenceType.CIRCLE} asChild>
+                    <button type="button">Circle</button>
+                  </TabsTrigger>
+                  <TabsTrigger value={GeofenceType.POLYGON} asChild>
+                    <button type="button">Polygon</button>
+                  </TabsTrigger>
                 </TabsList>
-                
-                {/* Circle Geofence */}
+
+                {/* Circle & Polygon TabsContent remain unchanged */}
                 <TabsContent value={GeofenceType.CIRCLE} className="mt-4 space-y-4">
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="centerLat" className="text-right">
-                      Center Latitude
-                    </Label>
+                    <Label htmlFor="centerLat" className="text-right">Center Latitude</Label>
                     <Input
                       id="centerLat"
                       name="centerLat"
@@ -301,11 +299,8 @@ export function GeofenceDialog({
                       required
                     />
                   </div>
-                  
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="centerLng" className="text-right">
-                      Center Longitude
-                    </Label>
+                    <Label htmlFor="centerLng" className="text-right">Center Longitude</Label>
                     <Input
                       id="centerLng"
                       name="centerLng"
@@ -317,11 +312,8 @@ export function GeofenceDialog({
                       required
                     />
                   </div>
-                  
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="radius" className="text-right">
-                      Radius (meters)
-                    </Label>
+                    <Label htmlFor="radius" className="text-right">Radius (meters)</Label>
                     <Input
                       id="radius"
                       name="radius"
@@ -334,15 +326,11 @@ export function GeofenceDialog({
                     />
                   </div>
                 </TabsContent>
-                
-                {/* Polygon Geofence */}
+
                 <TabsContent value={GeofenceType.POLYGON} className="mt-4">
                   <p className="text-sm text-muted-foreground mb-4">
                     Define polygon vertices (at least 3 points required)
                   </p>
-                  
-                  {/* For simplicity, we're only showing a basic UI for polygon creation.
-                      In a real application, you would use a map interface for drawing. */}
                   <div className="space-y-4 max-h-40 overflow-y-auto border rounded-md p-2">
                     {formState.coordinates.map((coord, index) => (
                       <div key={index} className="grid grid-cols-8 gap-2">
@@ -392,7 +380,6 @@ export function GeofenceDialog({
                       </div>
                     ))}
                   </div>
-                  
                   <Button
                     type="button"
                     variant="outline"
@@ -414,7 +401,7 @@ export function GeofenceDialog({
               </Tabs>
             </div>
           </div>
-          
+
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
