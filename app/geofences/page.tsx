@@ -48,10 +48,20 @@ export default function GeofencesPage() {
 
   const handleDialogSubmit = async (data: Partial<Geofence>) => {
     try {
+      const { shape, ...rest } = data;
+      const payload = {
+        ...rest,
+        type: shape?.type,  // ✅ Extract type from shape to top-level
+        shape: {            // ✅ Remove type from inside shape
+          ...shape,
+          type: undefined   // clean up just in case
+        },
+      };
+    
       const res = await fetch('/api/geofences', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) throw new Error('Failed to create geofence');
