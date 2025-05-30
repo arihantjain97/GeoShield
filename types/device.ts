@@ -8,10 +8,8 @@ export enum DeviceType {
 }
 
 export enum DeviceStatus {
-  CONNECTED_DATA = 'CONNECTED_DATA',
-  CONNECTED_DATA_SMS = 'CONNECTED_DATA_SMS',
-  CONNECTED_SMS = 'CONNECTED_SMS',
-  INACTIVE = ''
+  ACTIVE = 'Active',
+  INACTIVE = 'InActive',
 }
 
 export enum NetworkType {

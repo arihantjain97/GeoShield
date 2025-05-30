@@ -2,7 +2,6 @@ import { DeviceLocationResponse } from '@/types/api/device-location';
 import { DeviceStatusResponse } from '@/types/api/device-status';
 import { Device } from '@/types/device';
 import { getDeviceLocations, getDeviceStatuses, getAllDevices } from '@/lib/db';
-import axios from 'axios';
 
 // Wrapper to fetch device location data with error handling
 export async function getAllDeviceLocations(deviceIds: string[]): Promise<DeviceLocationResponse[]> {
@@ -16,7 +15,6 @@ export async function getAllDeviceLocations(deviceIds: string[]): Promise<Device
   }
 }
 
-Wrapper to fetch device status data with error handling
 export async function getAllDeviceStatuses(deviceIds: string[]): Promise<DeviceStatusResponse[]> {
   try {
     //currently set to DB mode

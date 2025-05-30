@@ -190,3 +190,162 @@ export async function getDeviceStatuses(deviceIds: string[]): Promise<DeviceStat
     throw new Error("Unable to load device status data.");
   }
 }
+
+export async function addDevice(
+  name: string,
+  type: string,
+  status: string,
+  phoneNumber: string
+): Promise<void> {
+  if (!name || !type || !status || !phoneNumber) {
+    throw new Error('All device fields (name, type, status, phoneNumber) are required.');
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    // Check if device with same phone number already exists
+    const existing = await client.query(
+      'SELECT id FROM devices WHERE phone_number = $1',
+      [phoneNumber]
+    );
+    if (existing.rowCount > 0) {
+      throw new Error(`Device with phone number ${phoneNumber} already exists.`);
+    }
+
+    const deviceResult = await client.query(
+      `
+      INSERT INTO devices (name, type, status, phone_number)
+      VALUES ($1, $2, $3, $4)
+      RETURNING id
+    `,
+      [name, type, status, phoneNumber]
+    );
+
+    const deviceId = deviceResult.rows[0].id;
+
+    // Insert default location
+    await client.query(
+      `
+      INSERT INTO device_location (device_id, area_type, latitude, longitude, radius)
+      VALUES ($1, 'CIRCLE', 1.4062, 103.9022, 50)
+    `,
+      [deviceId]
+    );
+
+    // Insert default status
+    await client.query(
+      `
+      INSERT INTO device_status (device_id, signal_strength, network_type, battery_level, connectivity_status)
+      VALUES ($1, 'Strong', '5G', '90%', 'CONNECTED_DATA_SMS')
+    `,
+      [deviceId]
+    );
+
+    await client.query('COMMIT');
+    console.log(`Inserted device (${deviceId}) with default location and status.`);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Error inserting device with location and status:', err);
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+export async function updateDevice(
+  name: string,
+  type: string,
+  status: string,
+  phoneNumber: string
+): Promise<void> {
+  if (!name || !type || !status || !phoneNumber) {
+    throw new Error('All fields (name, type, status, phoneNumber) are required.');
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Ensure device exists
+    const deviceResult = await client.query(
+      'SELECT id FROM devices WHERE phone_number = $1',
+      [phoneNumber]
+    );
+
+    if (deviceResult.rowCount === 0) {
+      throw new Error(`Device with phone number ${phoneNumber} does not exist.`);
+    }
+
+    const deviceId = deviceResult.rows[0].id;
+
+    // Update name, type, and status (phoneNumber is used as the search key)
+    await client.query(
+      `
+      UPDATE devices
+      SET name = $1, type = $2, status = $3
+      WHERE id = $4
+      `,
+      [name, type, status, deviceId]
+    );
+
+    await client.query('COMMIT');
+    console.log(`Device (${deviceId}) updated with name, type, and status.`);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Error updating device:', err);
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+export async function deleteDeviceByPhoneNumber(phoneNumber: string): Promise<void> {
+  if (!phoneNumber) {
+    throw new Error('Phone number is required for deletion.');
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Find device ID by phone number
+    const deviceRes = await client.query(
+      `SELECT id FROM devices WHERE phone_number = $1`,
+      [phoneNumber]
+    );
+
+    if (deviceRes.rowCount === 0) {
+      throw new Error(`No device found with phone number ${phoneNumber}`);
+    }
+
+    const deviceId = deviceRes.rows[0].id;
+
+    // Delete from device_status
+    await client.query(
+      `DELETE FROM device_status WHERE device_id = $1`,
+      [deviceId]
+    );
+
+    // Delete from device_location
+    await client.query(
+      `DELETE FROM device_location WHERE device_id = $1`,
+      [deviceId]
+    );
+
+    // Delete from devices
+    await client.query(
+      `DELETE FROM devices WHERE id = $1`,
+      [deviceId]
+    );
+
+    await client.query('COMMIT');
+    console.log(`Deleted device (${deviceId}) with phone number ${phoneNumber} and its related data.`);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Error deleting device and related data by phone number:', err);
+    throw err;
+  } finally {
+    client.release();
+  }
+}
