@@ -78,3 +78,9 @@ CREATE TABLE geofence_cells (
     validity TEXT CHECK (validity IN ('FULL', 'PARTIAL', 'NONE')) NOT NULL,
     checked_at TIMESTAMP DEFAULT NOW()
 );
+
+CREATE TABLE device_geofences (
+  device_id UUID REFERENCES devices(id) ON DELETE CASCADE,
+  geofence_id UUID REFERENCES geofences(id) ON DELETE CASCADE,
+  PRIMARY KEY (device_id, geofence_id)
+);

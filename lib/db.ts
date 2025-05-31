@@ -15,36 +15,83 @@ const pool = new Pool({
   ssl: false, // Set to true if needed
 });
 
+// pulls geofence data associaated to device.
+export async function getGeofenceWithDevices(geofenceId: string) {
+  const client = await pool.connect();
 
-function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const toRad = (x: number) => x * Math.PI / 180;
-  const R = 6371000; // Earth's radius in meters
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
+  try {
+    const geoResult = await client.query(`
+      SELECT g.id, g.name, g.type, 
+        cg.latitude AS center_latitude, 
+        cg.longitude AS center_longitude, 
+        cg.radius,
+        pg.coordinates
+      FROM geofences g
+      LEFT JOIN circle_geofences cg ON g.id = cg.geofence_id
+      LEFT JOIN polygon_geofences pg ON g.id = pg.geofence_id
+      WHERE g.id = $1
+    `, [geofenceId]);
 
-function isPointInPolygon(point: [number, number], polygon: { latitude: number; longitude: number }[]) {
-  const x = point[0], y = point[1];
-  let inside = false;
-  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    const xi = polygon[i].latitude, yi = polygon[i].longitude;
-    const xj = polygon[j].latitude, yj = polygon[j].longitude;
-    const intersect = ((yi > y) !== (yj > y)) &&
-      (x < ((xj - xi) * (y - yi)) / (yj - yi) + xi);
-    if (intersect) inside = !inside;
+    const deviceResult = await client.query(`
+      SELECT device_id FROM device_geofences WHERE geofence_id = $1
+    `, [geofenceId]);
+
+    if (geoResult.rowCount === 0) return null;
+
+    const geo = geoResult.rows[0];
+    const deviceIds = deviceResult.rows.map(r => r.device_id);
+
+    return {
+      id: geo.id,
+      name: geo.name,
+      type: geo.type,
+      shape: geo.type === 'CIRCLE'
+        ? { center_latitude: geo.center_latitude, center_longitude: geo.center_longitude, radius: geo.radius }
+        : { coordinates: geo.coordinates },
+      deviceIds
+    };
+  } finally {
+    client.release();
   }
-  return inside;
 }
 
+// store Geofence to Devices
+export async function associateDeviceWithGeofence(deviceId: string, geofenceId: string): Promise<void> {
+  await pool.query(`
+    INSERT INTO device_geofences (device_id, geofence_id)
+    VALUES ($1, $2)
+    ON CONFLICT DO NOTHING
+  `, [deviceId, geofenceId]);
+}
+
+// delete Geofence to Device
+export async function disassociateDeviceFromGeofence(deviceId: string, geofenceId: string): Promise<void> {
+  await pool.query(`
+    DELETE FROM device_geofences
+    WHERE device_id = $1 AND geofence_id = $2
+  `, [deviceId, geofenceId]);
+}
+
+// get Geofence to Device
+export async function getDevicesByGeofence(geofenceId: string): Promise<{ id: string; name: string }[]> {
+  const { rows } = await pool.query(`
+    SELECT d.id, d.name
+    FROM devices d
+    JOIN device_geofences dg ON d.id = dg.device_id
+    WHERE dg.geofence_id = $1
+  `, [geofenceId]);
+
+  return rows;
+}
+
+// Store Association: Geofence to cell sectors
 export async function associateGeofenceWithCellSectors(
   geofenceId: string,
   type: 'CIRCLE' | 'POLYGON',
   shape: any
 ): Promise<void> {
   const { rows: sectors } = await pool.query(`
-    SELECT eci, latitude, longitude FROM cell_sectors
+    SELECT eci, latitude, longitude, coverage_radius FROM cell_sectors
   `);
 
   const matched: { eci: string; validity: 'FULL' | 'PARTIAL' }[] = [];
@@ -56,7 +103,8 @@ export async function associateGeofenceWithCellSectors(
     for (const s of sectors) {
       const dist = haversineDistance(center_latitude, center_longitude, s.latitude, s.longitude);
       console.log(`📡 Distance to sector ${s.eci} [${s.latitude}, ${s.longitude}]: ${dist.toFixed(2)} meters`);
-      if (dist <= radius) {
+      if (dist <= radius + s.coverage_radius) {
+        console.log(`✅ MATCHED sector ${s.eci}: distance=${dist.toFixed(2)}m, coverage_radius=${s.coverage_radius}m`);
         matched.push({ eci: s.eci, validity: 'FULL' });
       }
     }
@@ -93,6 +141,29 @@ export async function associateGeofenceWithCellSectors(
   } finally {
     client.release();
   }
+}
+
+// Helper functions for distance-based verification association.
+export function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const toRad = (x: number) => x * Math.PI / 180;
+  const R = 6371000; // Earth's radius in meters
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+export function isPointInPolygon(point: [number, number], polygon: { latitude: number; longitude: number }[]) {
+  const x = point[0], y = point[1];
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].latitude, yi = polygon[i].longitude;
+    const xj = polygon[j].latitude, yj = polygon[j].longitude;
+    const intersect = ((yi > y) !== (yj > y)) &&
+      (x < ((xj - xi) * (y - yi)) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
 }
 
 // Fetch all geofences with their shape details
