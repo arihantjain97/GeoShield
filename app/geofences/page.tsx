@@ -57,24 +57,44 @@ export default function GeofencesPage() {
           type: undefined   // clean up just in case
         },
       };
-    
-      const res = await fetch('/api/geofences', {
-        method: 'POST',
+
+      // Conditional check for Updating
+      const isEditing = !!editingGeofence;
+
+      console.log('Submitting geofence form');
+      console.log('editingGeofence:', editingGeofence);
+      console.log('isEditing:', isEditing);
+      console.log('Fetch URL:', isEditing ? `/api/geofences/${editingGeofence}/update` : '/api/geofences');
+
+      const res = await fetch(
+      isEditing ? `/api/geofences/${editingGeofence}/update` : '/api/geofences',
+      {
+        method: isEditing ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
-      });
+      }
+      );
 
-      if (!res.ok) throw new Error('Failed to create geofence');
+      if ((!res.ok) && (isEditing)) throw new Error('Failed to submit geofence');
+      if ((!res.ok) && (!isEditing)) throw new Error('Failed to create geofence');
 
       const { id } = await res.json();
 
-      // Add to local store
-      addGeofence({
-        id,
-        ...data,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      } as Geofence);
+      if (isEditing) {
+        updateGeofence(
+        editingGeofence,
+        {
+          ...data,
+          updatedAt: new Date().toISOString(),
+        } as Geofence);
+      } else {
+        addGeofence({
+          id,
+          ...data,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        } as Geofence);
+      }
 
       setIsDialogOpen(false);
     } catch (err) {

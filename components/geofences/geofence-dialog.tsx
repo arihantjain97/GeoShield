@@ -235,10 +235,10 @@ export function GeofenceDialog({ open, onOpenChange, geofence, onSubmit }: Geofe
                 className="w-full"
               >
                 <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value={GeofenceType.CIRCLE}>
+                  <TabsTrigger value={GeofenceType.CIRCLE} asChild>
                     <button type="button">Circle</button>
                   </TabsTrigger>
-                  <TabsTrigger value={GeofenceType.POLYGON}>
+                  <TabsTrigger value={GeofenceType.POLYGON} asChild>
                     <button type="button">Polygon</button>
                   </TabsTrigger>
                 </TabsList>

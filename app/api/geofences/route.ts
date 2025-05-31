@@ -1,6 +1,12 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { createGeofence, insertCircleGeofence, insertPolygonGeofence, fetchAllGeofencesWithShape } from '@/lib/db';
+import { 
+  createGeofence, 
+  insertCircleGeofence, 
+  insertPolygonGeofence, 
+  fetchAllGeofencesWithShape,
+  associateGeofenceWithCellSectors
+} from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
@@ -26,6 +32,11 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Invalid circle shape' }, { status: 400 });
       }
       await insertCircleGeofence(geofenceId, center.latitude, center.longitude, radius);
+      await associateGeofenceWithCellSectors(geofenceId, 'CIRCLE', {
+        center_latitude: shape.center.latitude,
+        center_longitude: shape.center.longitude,
+        radius: shape.radius,
+      });
 
     } else if (type === 'POLYGON') {
       const { coordinates } = shape;
@@ -34,11 +45,30 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Polygon must have at least 3 points' }, { status: 400 });
       }
       await insertPolygonGeofence(geofenceId, coordinates);
+      await associateGeofenceWithCellSectors(geofenceId, 'POLYGON', {
+        coordinates: shape.coordinates,
+      });
 
     } else {
       console.error('Unsupported geofence type:', type);
       return NextResponse.json({ error: 'Invalid geofence type' }, { status: 400 });
     }
+
+    /*
+    if (type === 'CIRCLE') {
+      await associateGeofenceWithCellSectors(geofenceId, 'CIRCLE', {
+        center_latitude: shape.center.latitude,
+        center_longitude: shape.center.longitude,
+        radius: shape.radius,
+      });
+    }
+
+    if (type === 'POLYGON') {
+      await associateGeofenceWithCellSectors(geofenceId, 'POLYGON', {
+        coordinates: shape.coordinates,
+      });
+    }
+    */
 
     console.log(`Geofence created successfully: ${geofenceId}`);
     return NextResponse.json({ id: geofenceId }, { status: 201 });

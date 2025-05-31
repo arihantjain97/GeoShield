@@ -15,6 +15,86 @@ const pool = new Pool({
   ssl: false, // Set to true if needed
 });
 
+
+function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const toRad = (x: number) => x * Math.PI / 180;
+  const R = 6371000; // Earth's radius in meters
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function isPointInPolygon(point: [number, number], polygon: { latitude: number; longitude: number }[]) {
+  const x = point[0], y = point[1];
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].latitude, yi = polygon[i].longitude;
+    const xj = polygon[j].latitude, yj = polygon[j].longitude;
+    const intersect = ((yi > y) !== (yj > y)) &&
+      (x < ((xj - xi) * (y - yi)) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+export async function associateGeofenceWithCellSectors(
+  geofenceId: string,
+  type: 'CIRCLE' | 'POLYGON',
+  shape: any
+): Promise<void> {
+  const { rows: sectors } = await pool.query(`
+    SELECT eci, latitude, longitude FROM cell_sectors
+  `);
+
+  const matched: { eci: string; validity: 'FULL' | 'PARTIAL' }[] = [];
+
+  if (type === 'CIRCLE') {
+    const { center_latitude, center_longitude, radius } = shape;
+    console.log("📏 Geofence center and radius:", center_latitude, center_longitude, radius);
+
+    for (const s of sectors) {
+      const dist = haversineDistance(center_latitude, center_longitude, s.latitude, s.longitude);
+      console.log(`📡 Distance to sector ${s.eci} [${s.latitude}, ${s.longitude}]: ${dist.toFixed(2)} meters`);
+      if (dist <= radius) {
+        matched.push({ eci: s.eci, validity: 'FULL' });
+      }
+    }
+  }
+
+  if (type === 'POLYGON') {
+    const polygon = shape.coordinates;
+    for (const s of sectors) {
+      const inside = isPointInPolygon([s.latitude, s.longitude], polygon);
+      if (inside) {
+        matched.push({ eci: s.eci, validity: 'FULL' });
+      }
+    }
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(`DELETE FROM geofence_cells WHERE geofence_id = $1`, [geofenceId]);
+
+    for (const m of matched) {
+      await client.query(`
+        INSERT INTO geofence_cells (geofence_id, eci, validity)
+        VALUES ($1, $2, $3)
+      `, [geofenceId, m.eci, m.validity]);
+    }
+
+    await client.query('COMMIT');
+    console.log(`Associated ${matched.length} cell sectors with geofence ${geofenceId}`);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Failed to associate geofence with cells:', err);
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 // Fetch all geofences with their shape details
 export async function fetchAllGeofencesWithShape(): Promise<any[]> {
   const client = await pool.connect();
@@ -102,6 +182,44 @@ export async function updateGeofence(
   } catch (err) {
     console.error('Error updating geofence:', err);
     throw err;
+  }
+}
+
+export async function updateCircleShape(
+  geofenceId: string,
+  lat: number,
+  lng: number,
+  radius: number
+): Promise<void> {
+  await pool.query(`
+    UPDATE geofence_circle
+    SET center_latitude = $2, center_longitude = $3, radius = $4
+    WHERE geofence_id = $1
+  `, [geofenceId, lat, lng, radius]);
+}
+
+export async function updatePolygonShape(
+  geofenceId: string,
+  coordinates: { latitude: number; longitude: number }[]
+): Promise<void> {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(`DELETE FROM geofence_polygon WHERE geofence_id = $1`, [geofenceId]);
+
+    for (const coord of coordinates) {
+      await client.query(`
+        INSERT INTO geofence_polygon (geofence_id, latitude, longitude)
+        VALUES ($1, $2, $3)
+      `, [geofenceId, coord.latitude, coord.longitude]);
+    }
+
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
   }
 }
 
