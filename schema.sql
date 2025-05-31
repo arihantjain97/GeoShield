@@ -11,10 +11,7 @@ CREATE TABLE devices (
 -- Last known location of each device (circular area)
 CREATE TABLE device_location (
     device_id UUID REFERENCES devices(id) ON DELETE CASCADE,
-    area_type TEXT CHECK (area_type IN ('CIRCLE')),
-    latitude DOUBLE PRECISION,
-    longitude DOUBLE PRECISION,
-    radius DOUBLE PRECISION,
+    cell_sectors_id TEXT REFERENCES cell_sectors(eci),
     last_updated TIMESTAMP DEFAULT NOW(),
     PRIMARY KEY (device_id)
 );
