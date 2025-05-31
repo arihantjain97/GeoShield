@@ -1,14 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useGeoShieldStore } from '@/lib/store';
-import { v4 as uuidv4 } from 'uuid';
-
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
@@ -25,27 +22,22 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { 
-  GeofenceType, 
-  GeofencePriority, 
-  Geofence, 
-  CircleGeofence, 
-  PolygonGeofence 
+import {
+  GeofenceType,
+  GeofencePriority,
+  CircleGeofence,
+  PolygonGeofence,
+  Geofence,
 } from '@/types/geofence';
 
 interface GeofenceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  geofenceId: string | null;
+  geofence: Geofence | null;
+  onSubmit: (data: Partial<Geofence>) => void;
 }
 
-export function GeofenceDialog({ 
-  open, 
-  onOpenChange,
-  geofenceId
-}: GeofenceDialogProps) {
-  const { geofences, addGeofence, updateGeofence } = useGeoShieldStore();
-
+export function GeofenceDialog({ open, onOpenChange, geofence, onSubmit }: GeofenceDialogProps) {
   const initialFormState = {
     name: '',
     description: '',
@@ -64,79 +56,66 @@ export function GeofenceDialog({
 
   const [formState, setFormState] = useState(initialFormState);
 
+  // Prepopulate form state from geofence (if editing)
   useEffect(() => {
-    if (geofenceId) {
-      const geofence = geofences.find(g => g.id === geofenceId);
-      if (geofence) {
-        let newFormState = {
-          ...initialFormState,
-          name: geofence.name,
-          description: geofence.description || '',
-          priority: geofence.priority,
-          active: geofence.active,
-          geofenceType: geofence.shape.type,
+    if (geofence) {
+      let newFormState = {
+        ...initialFormState,
+        name: geofence.name,
+        description: geofence.description || '',
+        priority: geofence.priority,
+        active: geofence.active,
+        geofenceType: geofence.shape.type,
+      };
+
+      if (geofence.shape.type === GeofenceType.CIRCLE) {
+        const circleShape = geofence.shape as CircleGeofence;
+        newFormState = {
+          ...newFormState,
+          centerLat: circleShape.center.latitude,
+          centerLng: circleShape.center.longitude,
+          radius: circleShape.radius,
         };
-
-        if (geofence.shape.type === GeofenceType.CIRCLE) {
-          const circleShape = geofence.shape as CircleGeofence;
-          newFormState = {
-            ...newFormState,
-            centerLat: circleShape.center.latitude,
-            centerLng: circleShape.center.longitude,
-            radius: circleShape.radius,
-          };
-        } else if (geofence.shape.type === GeofenceType.POLYGON) {
-          const polygonShape = geofence.shape as PolygonGeofence;
-          newFormState = {
-            ...newFormState,
-            coordinates: polygonShape.coordinates,
-          };
-        }
-
-        setFormState(newFormState);
+      } else if (geofence.shape.type === GeofenceType.POLYGON) {
+        const polygonShape = geofence.shape as PolygonGeofence;
+        newFormState = {
+          ...newFormState,
+          coordinates: polygonShape.coordinates,
+        };
       }
+
+      setFormState(newFormState);
     } else {
       setFormState(initialFormState);
     }
-  }, [geofenceId, geofences, open]);
+  }, [geofence, open]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormState(prev => ({ ...prev, [name]: value }));
+    setFormState((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSelectChange = (name: string, value: string) => {
-    setFormState(prev => ({ ...prev, [name]: value }));
+    setFormState((prev) => ({ ...prev, [name]: value }));
   };
 
-  // ✅ Dedicated handler to update geofence type cleanly and preserve Tabs state
-  const handleGeofenceTypeChange = (value: GeofenceType) => {
-    setFormState(prev => ({ ...prev, geofenceType: value }));
+  const handleGeofenceTypeChange = (value: string) => {
+    setFormState((prev) => ({ ...prev, geofenceType: value as GeofenceType }));
   };
 
   const handleSwitchChange = (name: string, checked: boolean) => {
-    setFormState(prev => ({ ...prev, [name]: checked }));
+    console.log(`${name} set to`, checked);
+    setFormState((prev) => ({ ...prev, [name]: checked }));
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') e.preventDefault();
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const nativeEvent = e.nativeEvent as SubmitEvent;
-    const submitter = nativeEvent?.submitter as HTMLElement;
-
-      // Only submit if the submitter is the real submit button
-    if (!submitter || submitter.tagName !== 'BUTTON' || submitter.textContent?.includes('Add Geofence') === false) {
-      return;
-    }
-
-    console.log('Submitting geofence form with state:', formState); // ✅ Log form submission
-
     try {
       let shape: CircleGeofence | PolygonGeofence;
-
       if (formState.geofenceType === GeofenceType.CIRCLE) {
         shape = {
           type: GeofenceType.CIRCLE,
@@ -157,39 +136,19 @@ export function GeofenceDialog({
         };
       }
 
-      const payload = {
+      const data: Partial<Geofence> = {
         name: formState.name,
         description: formState.description || undefined,
         priority: formState.priority,
         active: formState.active,
-        type: formState.geofenceType,
+        shape,
       };
 
-      const res = await fetch('/api/geofences', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...payload, shape }),
-      });
-
-      if (!res.ok) {
-        console.error('Failed to create geofence', await res.text());
-        alert('Failed to create geofence.');
-        return;
-      }
-
-      const { id } = await res.json();
-
-      addGeofence({
-        id,
-        ...payload,
-        shape,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
-
+      console.log('Submitting geofence data to parent:', data);
+      onSubmit(data);
       onOpenChange(false);
     } catch (error) {
-      console.error('Exception while creating geofence:', error);
+      console.error('Exception while preparing geofence submission:', error);
       alert('An unexpected error occurred.');
     }
   };
@@ -198,10 +157,10 @@ export function GeofenceDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>{geofenceId ? 'Edit Geofence' : 'Add New Geofence'}</DialogTitle>
+          <DialogTitle>{geofence ? 'Edit Geofence' : 'Add New Geofence'}</DialogTitle>
           <DialogDescription>
-            {geofenceId 
-              ? 'Update the details for this geofence.' 
+            {geofence
+              ? 'Update the details for this geofence.'
               : 'Create a new geofenced area for monitoring devices.'}
           </DialogDescription>
         </DialogHeader>
@@ -243,7 +202,7 @@ export function GeofenceDialog({
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder="Select priority" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-white">
                     <SelectItem value={GeofencePriority.LOW}>Low</SelectItem>
                     <SelectItem value={GeofencePriority.MEDIUM}>Medium</SelectItem>
                     <SelectItem value={GeofencePriority.HIGH}>High</SelectItem>
@@ -258,7 +217,7 @@ export function GeofenceDialog({
                   <Switch
                     id="active"
                     checked={formState.active}
-                    onCheckedChange={(checked) => handleSwitchChange('active', checked)}
+                    onChange={(e) => handleSwitchChange('active', e.target.checked)}
                   />
                   <Label htmlFor="active" className="cursor-pointer">
                     {formState.active ? 'Active' : 'Inactive'}
@@ -406,8 +365,8 @@ export function GeofenceDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit">
-              {geofenceId ? 'Save Changes' : 'Add Geofence'}
+            <Button type="submit" className="bg-white text-black border border-gray-300 hover:bg-gray-100">
+              {geofence ? 'Save Changes' : 'Add Geofence'}
             </Button>
           </DialogFooter>
         </form>

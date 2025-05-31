@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useGeoShieldStore } from '@/lib/store';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,15 +12,94 @@ import { GeofenceMap } from '@/components/geofences/geofence-map';
 import { Geofence, GeofencePriority } from '@/types/geofence';
 
 export default function GeofencesPage() {
-  const { geofences, addGeofence, removeGeofence } = useGeoShieldStore();
+  const {
+    geofences,
+    addGeofence,
+    updateGeofence,
+    removeGeofence,
+    setGeofences
+  } = useGeoShieldStore();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingGeofence, setEditingGeofence] = useState<string | null>(null);
   const [showMap, setShowMap] = useState(true);
+
+  useEffect(() => {
+  const loadGeofences = async () => {
+      try {
+        const res = await fetch('/api/geofences');
+        if (!res.ok) throw new Error('Failed to fetch geofences');
+        const data = await res.json();
+        console.log('Loaded geofences from backend:', data);
+        setGeofences(data);
+      } catch (error) {
+        console.error('Error loading geofences:', error);
+      }
+    };
+    loadGeofences();
+  }, [setGeofences]);
+
 
   // Handle adding a new geofence
   const handleAddGeofence = async () => {
     setEditingGeofence(null);
     setIsDialogOpen(true);
+  };
+
+
+  const handleDialogSubmit = async (data: Partial<Geofence>) => {
+    try {
+      const { shape, ...rest } = data;
+      const payload = {
+        ...rest,
+        type: shape?.type,  // ✅ Extract type from shape to top-level
+        shape: {            // ✅ Remove type from inside shape
+          ...shape,
+          type: undefined   // clean up just in case
+        },
+      };
+
+      // Conditional check for Updating
+      const isEditing = !!editingGeofence;
+
+      console.log('Submitting geofence form');
+      console.log('editingGeofence:', editingGeofence);
+      console.log('isEditing:', isEditing);
+      console.log('Fetch URL:', isEditing ? `/api/geofences/${editingGeofence}/update` : '/api/geofences');
+
+      const res = await fetch(
+      isEditing ? `/api/geofences/${editingGeofence}/update` : '/api/geofences',
+      {
+        method: isEditing ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }
+      );
+
+      if ((!res.ok) && (isEditing)) throw new Error('Failed to submit geofence');
+      if ((!res.ok) && (!isEditing)) throw new Error('Failed to create geofence');
+
+      const { id } = await res.json();
+
+      if (isEditing) {
+        updateGeofence(
+        editingGeofence,
+        {
+          ...data,
+          updatedAt: new Date().toISOString(),
+        } as Geofence);
+      } else {
+        addGeofence({
+          id,
+          ...data,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        } as Geofence);
+      }
+
+      setIsDialogOpen(false);
+    } catch (err) {
+      console.error('Failed to add geofence:', err);
+    }
   };
 
   // Handle editing a geofence
@@ -29,10 +108,18 @@ export default function GeofencesPage() {
     setIsDialogOpen(true);
   };
 
-  // Handle deleting a geofence
-  const handleDeleteGeofence = (geofenceId: string) => {
-    if (confirm('Are you sure you want to delete this geofence?')) {
+  // Delete geofence via API
+  const handleDeleteGeofence = async (geofenceId: string) => {
+    if (!confirm('Are you sure you want to delete this geofence?')) return;
+    try {
+      const res = await fetch(`/api/geofences/${geofenceId}/delete`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) throw new Error('Failed to delete geofence');
+      console.log('Deleted geofence:', geofenceId);
       removeGeofence(geofenceId);
+    } catch (error) {
+      console.error('Error deleting geofence:', error);
     }
   };
 
@@ -152,7 +239,10 @@ export default function GeofencesPage() {
       <GeofenceDialog
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
-        geofenceId={editingGeofence}
+        geofence={
+          geofences.find((g) => g.id === editingGeofence) || null
+        }
+        onSubmit={handleDialogSubmit}
       />
     </div>
   );

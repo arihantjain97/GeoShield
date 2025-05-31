@@ -22,6 +22,8 @@ interface GeoShieldState {
   updateGeofence: (id: string, data: Partial<Geofence>) => void;
   removeGeofence: (id: string) => void;
   setSelectedGeofenceId: (id: string | null) => void;
+  setGeofences: (geofences: Geofence[]) => void;
+
 }
 
 export const useGeoShieldStore = create<GeoShieldState>((set) => ({
@@ -59,4 +61,5 @@ export const useGeoShieldStore = create<GeoShieldState>((set) => ({
     selectedGeofenceId: state.selectedGeofenceId === id ? null : state.selectedGeofenceId,
   })),
   setSelectedGeofenceId: (id) => set({ selectedGeofenceId: id }),
+  setGeofences: (geofences) => set({ geofences }),
 }));
