@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getGeofenceWithDevices, getDeviceLocations, haversineDistance, isPointInPolygon} from '@/lib/db';
 
@@ -14,34 +15,41 @@ export async function GET(
     }
 
     const locations = await getDeviceLocations(geofence.deviceIds);
-
-    const results = locations.map(loc => {
-      if (!loc.latitude || !loc.longitude) {
-        return { deviceId: loc.deviceId, inside: "UNKNOWN", latitude: null, longitude: null, lastSeen: loc.lastUpdated };
+    
+    const results = locations.deviceLocations.map(loc => {
+      if (!loc.location || loc.location.latitude == null || loc.location.longitude == null) {
+        return {
+          deviceId: loc.deviceId,
+          inside: "UNKNOWN",
+          latitude: null,
+          longitude: null,
+          lastSeen: loc.location?.timestamp || null
+        };
       }
 
       let inside = "FALSE";
+      const lat = loc.location.latitude;
+      const lng = loc.location.longitude;
 
       if (geofence.type === 'CIRCLE') {
         const dist = haversineDistance(
           geofence.shape.center_latitude,
           geofence.shape.center_longitude,
-          loc.latitude,
-          loc.longitude
+          lat,
+          lng
         );
         if (dist <= geofence.shape.radius) inside = "TRUE";
-
       } else if (geofence.type === 'POLYGON') {
-        const point = [loc.latitude, loc.longitude];
+        const point: [number, number] = [lat, lng];
         if (isPointInPolygon(point, geofence.shape.coordinates)) inside = "TRUE";
       }
 
       return {
         deviceId: loc.deviceId,
         inside,
-        latitude: loc.latitude,
-        longitude: loc.longitude,
-        lastSeen: loc.lastUpdated
+        latitude: lat,
+        longitude: lng,
+        lastSeen: loc.location.timestamp
       };
     });
 
